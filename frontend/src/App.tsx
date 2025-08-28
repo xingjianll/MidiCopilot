@@ -1,35 +1,82 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Sidebar } from './components/Sidebar';
+import { HomePage } from './pages/HomePage';
+import { RunsPage } from './pages/RunsPage';
+import { SamplesPage } from './pages/SamplesPage';
+import { WorkflowEditor } from './components/WorkflowEditor';
+import { theme } from './theme';
+import './App.css';
+
+type AppView = 'home' | 'runs' | 'samples' | 'editor';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [activeTab, setActiveTab] = useState<AppView>('home');
+  const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab as AppView);
+    if (tab !== 'editor') {
+      setEditingWorkflowId(null);
+    }
+  };
+
+  const handleEditWorkflow = (workflowId: string) => {
+    setEditingWorkflowId(workflowId);
+    setActiveTab('editor');
+  };
+
+  const handleBackFromEditor = () => {
+    setActiveTab('home');
+    setEditingWorkflowId(null);
+  };
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return <HomePage />;
+      case 'runs':
+        return <RunsPage />;
+      case 'samples':
+        return <SamplesPage />;
+      case 'editor':
+        return (
+          <WorkflowEditor 
+            workflowId={editingWorkflowId || undefined} 
+            onBack={handleBackFromEditor}
+          />
+        );
+      default:
+        return <HomePage />;
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        background: theme.colors.background,
+        color: theme.colors.text.primary,
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        overflow: 'hidden',
+      }}
+    >
+      {activeTab !== 'editor' && (
+        <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
+      )}
+      
+      <motion.div
+        key={activeTab}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        style={{ flex: 1, width: '100%', overflow: 'hidden' }}
+      >
+        {renderContent()}
+      </motion.div>
+    </div>
+  );
 }
 
-export default App
+export default App;
