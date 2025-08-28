@@ -5,6 +5,7 @@ import { HomePage } from './pages/HomePage';
 import { RunsPage } from './pages/RunsPage';
 import { SamplesPage } from './pages/SamplesPage';
 import { WorkflowEditor } from './components/WorkflowEditor';
+import { GraphPage } from './pages/GraphPage';
 import { theme } from './theme';
 import './App.css';
 
@@ -34,7 +35,7 @@ function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
-        return <HomePage />;
+        return <HomePage onEditWorkflow={handleEditWorkflow} />;
       case 'runs':
         return <RunsPage />;
       case 'samples':

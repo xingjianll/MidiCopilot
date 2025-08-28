@@ -7,9 +7,10 @@ import { theme } from '../theme';
 interface WorkflowDetailProps {
   workflow: Workflow;
   onClose?: () => void;
+  onEdit?: (workflowId: string) => void;
 }
 
-export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClose }) => {
+export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClose, onEdit }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -147,6 +148,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => onEdit?.(workflow.id)}
             style={{
               display: 'flex',
               alignItems: 'center',

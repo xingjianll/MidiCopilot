@@ -4,13 +4,22 @@ import { ViewMode, Workflow } from '../types';
 import { mockWorkflows } from '../mockData';
 import { theme } from '../theme';
 import { ViewToggle } from '../components/ViewToggle';
+import { Plus } from 'lucide-react';
 import { WorkflowCard } from '../components/WorkflowCard';
 import { WorkflowRow } from '../components/WorkflowRow';
 import { WorkflowDetail } from '../components/WorkflowDetail';
 
-export const HomePage: React.FC = () => {
+interface HomePageProps {
+  onEditWorkflow?: (workflowId: string) => void;
+}
+
+export const HomePage: React.FC<HomePageProps> = ({ onEditWorkflow }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+
+  const handleNewWorkflow = () => {
+    onEditWorkflow?.('new');
+  };
 
   // Auto-select first workflow in column view
   useEffect(() => {
@@ -66,7 +75,7 @@ export const HomePage: React.FC = () => {
             <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
           </div>
 
-          <div style={{ flex: 1, overflow: 'auto' }}>
+          <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -74,6 +83,7 @@ export const HomePage: React.FC = () => {
                 background: theme.colors.glass.surface,
                 backdropFilter: theme.blur.md,
                 overflow: 'hidden',
+                flex: 1,
               }}
             >
               {mockWorkflows.map((workflow) => (
@@ -85,13 +95,39 @@ export const HomePage: React.FC = () => {
                 />
               ))}
             </motion.div>
+            
+            {/* New Workflow Button at bottom */}
+            <div style={{ padding: theme.spacing.lg, background: theme.colors.glass.surface, backdropFilter: theme.blur.sm }}>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleNewWorkflow}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: theme.spacing.sm,
+                  padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+                  background: theme.colors.accent.primary,
+                  color: theme.colors.text.primary,
+                  border: 'none',
+                  borderRadius: theme.borderRadius.lg,
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  width: '100%',
+                }}
+              >
+                <Plus size={16} />
+                New Workflow
+              </motion.button>
+            </div>
           </div>
         </div>
 
         {/* Detail panel takes remaining space */}
         <div style={{ flex: 1, background: theme.colors.background, overflow: 'auto', padding: theme.spacing.xl }}>
           {selectedWorkflow && (
-            <WorkflowDetail workflow={selectedWorkflow} />
+            <WorkflowDetail workflow={selectedWorkflow} onEdit={onEditWorkflow} />
           )}
         </div>
       </div>
@@ -124,7 +160,7 @@ export const HomePage: React.FC = () => {
           <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
         </div>
 
-        <div style={{ flex: 1, overflow: 'auto', padding: `${theme.spacing.lg} 0 ${theme.spacing.lg} ${theme.spacing.lg}` }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: `${theme.spacing.lg} 0 ${theme.spacing.lg} ${theme.spacing.lg}`, display: 'flex', flexDirection: 'column' }}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -135,6 +171,7 @@ export const HomePage: React.FC = () => {
               width: '100%',
               overflowX: 'auto',
               padding: '0 0 1rem 0',
+              flex: 1,
             }}
           >
             {mockWorkflows.map((workflow) => (
@@ -153,6 +190,32 @@ export const HomePage: React.FC = () => {
               </motion.div>
             ))}
           </motion.div>
+          
+          {/* New Workflow Button at bottom */}
+          <div style={{ padding: `0 ${theme.spacing.lg} ${theme.spacing.lg} 0`, display: 'flex', justifyContent: 'center' }}>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleNewWorkflow}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: theme.spacing.sm,
+                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                background: theme.colors.accent.primary,
+                color: theme.colors.text.primary,
+                border: 'none',
+                borderRadius: theme.borderRadius.lg,
+                cursor: 'pointer',
+                fontWeight: '500',
+                minWidth: '200px',
+              }}
+            >
+              <Plus size={18} />
+              New Workflow
+            </motion.button>
+          </div>
         </div>
       </div>
 
@@ -196,7 +259,7 @@ export const HomePage: React.FC = () => {
                 padding: theme.spacing.xl,
               }}
             >
-              <WorkflowDetail workflow={selectedWorkflow} onClose={closeDetail} />
+              <WorkflowDetail workflow={selectedWorkflow} onClose={closeDetail} onEdit={onEditWorkflow} />
             </motion.div>
           </>
         )}
