@@ -10,8 +10,13 @@ Install uv:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Run the development server:
+Install pnpm:
 ```shell
-uv run python -m src.main
+curl -fsSL https://get.pnpm.io/install.sh | sh -
+```
+
+Run the development servers:
+```shell
+pnpm run dev
 ```
 
