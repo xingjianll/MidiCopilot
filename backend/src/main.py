@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 
 from src.services.aria_service import get_aria_service
+from src.services.aria_variants_service import get_aria_variants_service
 from src.services.sample_service import get_sample_service
 from src.dto.aria_dto import AriaContinuationResponse
 from src.dto.sample_dto import (
@@ -207,6 +208,146 @@ async def download_continuation(filename: str):
         media_type="audio/midi",
         filename=filename
     )
+
+
+# ARIA Harmony Endpoints
+
+@app.post("/api/aria-harmony/continuation/stream")
+async def generate_aria_harmony_stream(
+    file: UploadFile = File(..., description="MIDI file for harmonic generation"),
+    max_length: int = Form(1024, description="Maximum length of generated sequence"),
+    temperature: float = Form(0.97, description="Sampling temperature"),
+    top_p: float = Form(0.95, description="Top-p sampling parameter"),
+    ignore_prompt: bool = Form(False, description="Whether to ignore the prompt")
+):
+    """
+    Generate harmonic continuation using ARIA Harmony model with streaming progress
+    
+    Args:
+        file: Input MIDI file
+        max_length: Maximum tokens to generate
+        temperature: Controls randomness (0.0 to 1.0)
+        top_p: Nucleus sampling parameter
+        ignore_prompt: Generate from scratch ignoring the input
+    
+    Returns:
+        Server-Sent Events stream with progress updates
+    """
+    # Validate file type
+    if not file.filename.endswith(('.mid', '.midi')):
+        raise HTTPException(status_code=400, detail="File must be a MIDI file (.mid or .midi)")
+
+    try:
+        # Generate unique ID for this request
+        request_id = str(uuid.uuid4())
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Save uploaded file
+        input_filename = f"{timestamp}_{request_id}_input.mid"
+        input_path = UPLOAD_DIR / input_filename
+        with input_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Generate output path
+        output_filename = f"{timestamp}_{request_id}_harmony.mid"
+        output_path = OUTPUT_DIR / output_filename
+
+        # Get the ARIA variants service
+        aria_variants = get_aria_variants_service()
+
+        # Generate continuation with streaming
+        def event_stream():
+            yield from aria_variants.generate_harmony_stream(
+                prompt_midi_path=str(input_path),
+                output_midi_path=str(output_path),
+                max_length=max_length,
+                temperature=temperature,
+                top_p=top_p,
+                ignore_prompt=ignore_prompt
+            )
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"  # Disable buffering for nginx
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating harmony: {str(e)}")
+
+
+# ARIA Style (Chopin) Endpoints
+
+@app.post("/api/aria-style/continuation/stream")
+async def generate_aria_style_stream(
+    file: UploadFile = File(..., description="MIDI file for style generation"),
+    max_length: int = Form(1024, description="Maximum length of generated sequence"),
+    temperature: float = Form(0.97, description="Sampling temperature"),
+    top_p: float = Form(0.95, description="Top-p sampling parameter"),
+    ignore_prompt: bool = Form(False, description="Whether to ignore the prompt")
+):
+    """
+    Generate Chopin-style continuation using ARIA Style model with streaming progress
+    
+    Args:
+        file: Input MIDI file
+        max_length: Maximum tokens to generate
+        temperature: Controls randomness (0.0 to 1.0)
+        top_p: Nucleus sampling parameter
+        ignore_prompt: Generate from scratch ignoring the input
+    
+    Returns:
+        Server-Sent Events stream with progress updates
+    """
+    # Validate file type
+    if not file.filename.endswith(('.mid', '.midi')):
+        raise HTTPException(status_code=400, detail="File must be a MIDI file (.mid or .midi)")
+
+    try:
+        # Generate unique ID for this request
+        request_id = str(uuid.uuid4())
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Save uploaded file
+        input_filename = f"{timestamp}_{request_id}_input.mid"
+        input_path = UPLOAD_DIR / input_filename
+        with input_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Generate output path
+        output_filename = f"{timestamp}_{request_id}_chopin.mid"
+        output_path = OUTPUT_DIR / output_filename
+
+        # Get the ARIA variants service
+        aria_variants = get_aria_variants_service()
+
+        # Generate continuation with streaming
+        def event_stream():
+            yield from aria_variants.generate_style_stream(
+                prompt_midi_path=str(input_path),
+                output_midi_path=str(output_path),
+                max_length=max_length,
+                temperature=temperature,
+                top_p=top_p,
+                ignore_prompt=ignore_prompt
+            )
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"  # Disable buffering for nginx
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating style: {str(e)}")
 
 
 # Sample Management Endpoints

@@ -49,6 +49,14 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     try {
       let response;
       
+      // Determine which API endpoint to use based on workflow ID
+      let apiEndpoint = 'http://localhost:8000/api/aria/continuation/stream';
+      if (workflow.id === 'aria-harmony') {
+        apiEndpoint = 'http://localhost:8000/api/aria-harmony/continuation/stream';
+      } else if (workflow.id === 'aria-style') {
+        apiEndpoint = 'http://localhost:8000/api/aria-style/continuation/stream';
+      }
+      
       if (selectedFile instanceof File) {
         // Upload file directly
         const formData = new FormData();
@@ -56,8 +64,12 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
         formData.append('max_length', '1024');
         formData.append('temperature', '0.97');
         formData.append('top_p', '0.95');
+        // Add ignore_prompt for harmony and style models
+        if (workflow.id === 'aria-harmony' || workflow.id === 'aria-style') {
+          formData.append('ignore_prompt', 'false');
+        }
         
-        response = await fetch('http://localhost:8000/api/aria/continuation/stream', {
+        response = await fetch(apiEndpoint, {
           method: 'POST',
           body: formData,
         });
@@ -83,9 +95,13 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
         formData.append('max_length', '1024');
         formData.append('temperature', '0.97');
         formData.append('top_p', '0.95');
+        // Add ignore_prompt for harmony and style models
+        if (workflow.id === 'aria-harmony' || workflow.id === 'aria-style') {
+          formData.append('ignore_prompt', 'false');
+        }
         
         console.log('Sending ARIA request with sample file');
-        response = await fetch('http://localhost:8000/api/aria/continuation/stream', {
+        response = await fetch(apiEndpoint, {
           method: 'POST',
           body: formData,
         });

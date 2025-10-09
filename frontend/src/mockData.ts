@@ -49,6 +49,112 @@ Developed with support from EleutherAI, Stability AI, and the Korean Ministry of
     outputs: [
       { id: 'continuation', name: 'Continuation', type: 'MidiTrack', description: 'AI-generated MIDI continuation' }
     ]
+  },
+  
+  // Aria Harmony
+  {
+    id: 'aria-harmony',
+    name: 'Aria Harmony',
+    description: 'ARIA model fine-tuned for harmonic generation and accompaniment',
+    createdAt: '2024-10-15',
+    isModule: true,
+    inputs: [
+      {
+        id: 'track',
+        name: 'Track',
+        type: 'MidiTrack',
+        description: 'Input MIDI track (melody or partial harmony)',
+        required: true
+      }
+    ],
+    outputs: [
+      {
+        id: 'harmony',
+        name: 'Harmony',
+        type: 'MidiTrack',
+        description: 'Generated harmonic accompaniment'
+      }
+    ],
+    detailedDescription: `## ARIA Harmony
+
+ARIA Harmony is a specialized variant of the base ARIA model, fine-tuned specifically for **harmonic generation and accompaniment**. This model excels at creating rich harmonic contexts for melodies or completing partial harmonic structures.
+
+### Key Features
+- **Harmonic Intelligence**: Understands complex chord progressions and voice leading
+- **Style Preservation**: Maintains harmonic style consistent with the input
+- **Multi-Voice Generation**: Creates full harmonic textures with proper voice leading
+- **Context-Sensitive**: Adapts harmony based on melodic and rhythmic context
+
+### Technical Details
+- **Base Model**: ARIA (LLaMA 3.2)
+- **Fine-tuning**: LoRA adapters trained on harmonic progressions
+- **Specialized Training**: Focus on Bach chorales, classical harmonizations
+- **Checkpoint**: aria-harmony-epoch=02-val_loss=4.2002.ckpt
+
+### Usage Notes
+- Excellent for harmonizing melodies
+- Can complete partial chord progressions
+- Works well with both simple and complex melodic inputs
+- Option to ignore prompt for pure harmonic generation
+
+### Ignore Prompt Option
+When enabled, generates completely new harmonic material inspired by but not directly continuing the input.`
+  },
+  
+  // Aria Style (Chopin)
+  {
+    id: 'aria-style',
+    name: 'Aria Style (Chopin)',
+    description: 'ARIA model fine-tuned on Chopin\'s romantic style',
+    createdAt: '2024-10-15',
+    isModule: true,
+    inputs: [
+      {
+        id: 'track',
+        name: 'Track',
+        type: 'MidiTrack',
+        description: 'Input MIDI track for style transfer',
+        required: true
+      }
+    ],
+    outputs: [
+      {
+        id: 'styled',
+        name: 'Styled Output',
+        type: 'MidiTrack',
+        description: 'Chopin-style transformation'
+      }
+    ],
+    detailedDescription: `## ARIA Style - Chopin
+
+ARIA Style (Chopin) is a specialized variant fine-tuned exclusively on **Frédéric Chopin's** complete works. This model captures the essence of Chopin's romantic style, including his characteristic rubato, ornamentations, and harmonic language.
+
+### Key Features
+- **Authentic Chopin Style**: Trained on all of Chopin's piano works
+- **Romantic Expression**: Captures rubato, dynamics, and phrasing
+- **Ornamental Flourishes**: Generates characteristic runs, trills, and grace notes
+- **Harmonic Sophistication**: Uses Chopin's unique harmonic progressions
+
+### Technical Details
+- **Base Model**: ARIA (LLaMA 3.2)
+- **Fine-tuning**: LoRA adapters trained exclusively on Chopin
+- **Training Data**: Complete Chopin piano works (Nocturnes, Études, Ballades, etc.)
+- **Checkpoint**: aria-style-epoch=06-val_loss=2.0712.ckpt
+
+### Musical Characteristics
+- **Nocturne-like**: Singing melodies with rich accompaniment
+- **Virtuosic Elements**: Incorporates technical passages typical of Chopin
+- **Romantic Harmony**: Chromatic progressions and unexpected modulations
+- **Expressive Timing**: Natural rubato and tempo fluctuations
+
+### Usage Notes
+- Best with romantic-era style inputs
+- Can transform simple melodies into Chopin-like compositions
+- Maintains input structure while applying stylistic elements
+- Option to generate entirely new Chopin-style pieces
+
+### Ignore Prompt Option
+When enabled, generates original Chopin-style compositions inspired by but not directly based on the input.`
   }
 ];
 
