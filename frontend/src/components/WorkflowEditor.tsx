@@ -18,6 +18,7 @@ import { Save, Play, ArrowLeft, Cpu } from 'lucide-react';
 import { theme } from '../theme';
 import { mockWorkflows } from '../mockData';
 import { WorkflowDetail } from './WorkflowDetail';
+import { AriaExecutionPanel } from './AriaExecutionPanel';
 
 interface WorkflowEditorProps {
   workflowId?: string;
@@ -158,69 +159,19 @@ const initialNodes: Node[] = [
   {
     id: '1',
     type: 'module',
-    data: { workflow: mockWorkflows[1] }, // ACE-Step Music Generator (generates AudioTrack)
-    position: { x: 100, y: 50 },
-  },
-  {
-    id: '2',
-    type: 'module',
-    data: { workflow: mockWorkflows[4] }, // Audio to MIDI Converter (AudioTrack -> MidiTrack)
-    position: { x: 500, y: 50 },
-  },
-  {
-    id: '3',
-    type: 'module',
     data: { workflow: mockWorkflows[0] }, // Aria (MidiTrack -> MidiTrack)
-    position: { x: 900, y: 50 },
-  },
-  {
-    id: '4',
-    type: 'module',
-    data: { workflow: mockWorkflows[2] }, // ACE-Step Voice Cloning (AudioTrack + string + MidiTrack -> AudioTrack)
-    position: { x: 500, y: 300 },
+    position: { x: 400, y: 150 },
   },
 ];
 
-const initialEdges: Edge[] = [
-  { 
-    id: 'e1-2', 
-    source: '1', 
-    target: '2',
-    sourceHandle: 'audio', // ACE-Step Music Generator output
-    targetHandle: 'audio_input', // Audio to MIDI Converter input
-    style: { stroke: '#4A90E2', strokeWidth: 3 }
-  },
-  { 
-    id: 'e2-3', 
-    source: '2', 
-    target: '3',
-    sourceHandle: 'midi_output', // Audio to MIDI Converter output
-    targetHandle: 'track', // Aria input
-    style: { stroke: '#4A90E2', strokeWidth: 3 }
-  },
-  { 
-    id: 'e1-4', 
-    source: '1', 
-    target: '4',
-    sourceHandle: 'audio', // ACE-Step Music Generator output
-    targetHandle: 'reference_voice', // Voice Cloning reference voice input
-    style: { stroke: '#4A90E2', strokeWidth: 3 }
-  },
-  { 
-    id: 'e3-4', 
-    source: '3', 
-    target: '4',
-    sourceHandle: 'continuation', // Aria output
-    targetHandle: 'melody', // Voice Cloning melody input
-    style: { stroke: '#4A90E2', strokeWidth: 3 }
-  },
-];
+const initialEdges: Edge[] = [];
 
 export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBack }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedWorkflows] = useState(mockWorkflows);
   const [selectedWorkflow, setSelectedWorkflow] = useState<any | null>(null);
+  const [showExecutionPanel, setShowExecutionPanel] = useState(false);
 
   const onConnect = useCallback(
     (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -500,6 +451,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => setShowExecutionPanel(true)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -585,7 +537,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
                 zIndex: 40,
               }}
             />
-            
+
             {/* Drawer */}
             <motion.div
               initial={{ x: '100%' }}
@@ -606,6 +558,52 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
               }}
             >
               <WorkflowDetail workflow={selectedWorkflow} onClose={closeDetail} />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Execution Panel Drawer */}
+      <AnimatePresence>
+        {showExecutionPanel && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowExecutionPanel(false)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: theme.colors.glass.backdrop,
+                zIndex: 40,
+              }}
+            />
+
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                right: 0,
+                width: '500px',
+                height: '100vh',
+                background: theme.colors.glass.surface,
+                backdropFilter: theme.blur.md,
+                zIndex: 50,
+                overflow: 'auto',
+                padding: theme.spacing.xl,
+              }}
+            >
+              <AriaExecutionPanel onClose={() => setShowExecutionPanel(false)} />
             </motion.div>
           </>
         )}

@@ -5,30 +5,42 @@ export const mockWorkflows: Workflow[] = [
     id: '1',
     name: 'Aria',
     description: 'AI-powered MIDI music continuation and generation',
-    detailedDescription: `## Aria - Generative AI for MIDI Music
+    detailedDescription: `## Aria - Autoregressive Piano MIDI Generation
 
-Aria is a state-of-the-art generative AI system designed for symbolic music composition, powered by the Anticipatory Music Transformer from Stanford University and Carnegie Mellon University.
+Aria is a pretrained autoregressive generative model specialized in symbolic music generation, built on the LLaMA 3.2 architecture.
 
-### Core Technology
-- **Base Model**: Anticipatory Music Transformer by John Thickstun, David Hall, Percy Liang (Stanford) and Chris Donahue (CMU)
-- **Training Data**: Fine-tuned on 50,000+ MIDI transcriptions of popular songs across all genres
-- **Specialization**: Fluent in harmonic structures and melodic patterns from the corpus of popular music
+### Model Architecture
+- **Base Model**: LLaMA 3.2 (1B)
+- **Parameters**: 659M parameters
+- **License**: Apache 2.0 (open source)
+- **Specialization**: Solo piano MIDI generation and embeddings
+
+### Training Details
+- **Dataset**: ~60,000 hours of expressive solo-piano MIDI recordings
+- **Focus**: Realistic piano compositions and continuations
+- **Approach**: Pure autoregressive training (no instruction tuning or RLHF)
+- **Quality**: Trained on high-quality, expressive performances
 
 ### Key Capabilities
-- **Continuation Generation**: Creates natural left-to-right continuations of existing MIDI tracks
-- **Contextual Awareness**: Analyzes surrounding musical context to generate fitting continuations
-- **Genre Versatility**: Trained on diverse musical styles from jazz to electronic to classical
-- **Symbolic Music Focus**: Specialized for MIDI/symbolic music rather than audio generation
+- **MIDI Continuation**: Generates natural continuations of existing piano pieces
+- **Realistic Compositions**: Produces musically coherent piano music
+- **Contrastive Embeddings**: Creates MIDI embeddings for analysis
+- **Expressive Performance**: Captures nuanced piano playing dynamics
 
-### How It Works
-1. Analyzes the input MIDI track for harmonic and melodic patterns
-2. Uses transformer architecture to predict musically coherent continuations
-3. Applies learned patterns from 50,000+ song database
-4. Generates contextually appropriate MIDI continuation
+### Best Practices
+- **Optimal Input**: Single-track piano MIDI files
+- **Input Quality**: Works best with well-played music as prompts
+- **Use Case**: Piano composition continuation and generation
+- **Note**: Model may compositionally memorize some popular classical pieces
 
-Perfect for composers seeking AI-assisted inspiration, breaking creative blocks, or exploring new musical directions. Developed in partnership with HookTheory and integrated into professional music composition workflows.
+### Technical Notes
+- Sensitive to input quality - better prompts yield better results
+- Designed specifically for solo piano, not multi-instrument arrangements
+- No post-training alignment, pure generative capability
 
-*This is a specialized AI module optimized for MIDI music generation.*`,
+Developed with support from EleutherAI, Stability AI, and the Korean Ministry of Science and ICT.
+
+*This is a specialized AI module optimized for solo piano MIDI generation.*`,
     createdAt: '2024-01-15T10:30:00Z',
     isModule: true,
     inputs: [
@@ -36,164 +48,6 @@ Perfect for composers seeking AI-assisted inspiration, breaking creative blocks,
     ],
     outputs: [
       { id: 'continuation', name: 'Continuation', type: 'MidiTrack', description: 'AI-generated MIDI continuation' }
-    ]
-  },
-  {
-    id: '2',
-    name: 'ACE-Step Music Generator',
-    description: 'Foundation model for AI music generation from text prompts',
-    detailedDescription: `## ACE-Step Music Generator - Foundation Model for AI Music
-
-ACE-Step is a cutting-edge open-source foundation model for AI music generation developed by ACE Studio and StepFun, representing the "stable diffusion moment for music."
-
-### Core Technology
-- **Architecture**: Diffusion-based generation with Sana's Deep Compression AutoEncoder (DCAE)
-- **Transformer**: Lightweight linear transformer for efficient processing
-- **Semantic Alignment**: MERT and m-hubert for representation alignment (REPA)
-- **License**: Apache 2.0 (fully open-source)
-
-### Performance Capabilities
-- **Ultra-Fast Generation**: Up to 4 minutes of music in 20 seconds on A100 GPU
-- **Efficiency**: 15× faster than LLM-based baselines
-- **Quality**: Superior musical coherence and lyric alignment
-- **Hardware Support**: Optimized for RTX 4090 (34.48x RTF) and RTX 3090 (12.76x RTF)
-
-### Advanced Features
-- **Multi-genre Support**: All mainstream music styles
-- **Multilingual**: 19 languages supported (English, Chinese, Russian, Spanish, Japanese, etc.)
-- **Flexible Input**: Tags, genres, scene descriptions, lyrics, or detailed prompts
-- **High Fidelity**: Preserves fine-grained acoustic details
-
-Perfect for rapid prototyping, content creation, and professional music production workflows requiring high-quality AI-generated audio.
-
-*This is a foundation model optimized for high-speed audio music generation.*`,
-    createdAt: '2024-01-16T09:15:00Z',
-    isModule: true,
-    inputs: [
-      { id: 'prompt', name: 'Prompt', type: 'string', required: true, description: 'Text description of the music to generate' },
-      { id: 'duration', name: 'Duration', type: 'number', required: false, description: 'Length in seconds (up to 240)' },
-      { id: 'genre', name: 'Genre', type: 'string', required: false, description: 'Musical genre (optional)' }
-    ],
-    outputs: [
-      { id: 'audio', name: 'Generated Music', type: 'AudioTrack', description: 'AI-generated music audio' }
-    ]
-  },
-  {
-    id: '3',
-    name: 'ACE-Step Voice Cloning',
-    description: 'Advanced voice cloning and vocal synthesis',
-    detailedDescription: `## ACE-Step Voice Cloning - Advanced Vocal Synthesis
-
-Specialized ACE-Step module for voice cloning and vocal generation, enabling creation of custom vocal performances with remarkable fidelity.
-
-### Core Capabilities
-- **Voice Cloning**: Create synthetic vocals based on reference voice samples
-- **Lyric-to-Vocal**: Generate singing voices from lyrics and melody
-- **Style Transfer**: Apply different vocal styles to existing performances
-- **Multi-language**: Support for 19 languages with native pronunciation
-
-### Technical Features
-- **Few-shot Learning**: Clone voices from minimal reference material
-- **Emotional Control**: Adjust vocal emotion and expression
-- **Pitch Accuracy**: Precise control over vocal pitch and timing
-- **Natural Synthesis**: Human-like vocal characteristics and breathing
-
-### Advanced Controls
-- **Vocal Effects**: Vibrato, breathiness, vocal fry controls
-- **Performance Style**: Pop, jazz, classical, folk vocal styles
-- **Dynamic Expression**: Crescendo, diminuendo, accent control
-- **Harmonic Generation**: Multi-part vocal harmonies
-
-Built on ACE-Step's diffusion architecture for professional-quality vocal synthesis in creative and commercial applications.
-
-*This is a specialized AI module for vocal synthesis and voice cloning.*`,
-    createdAt: '2024-01-16T10:45:00Z',
-    isModule: true,
-    inputs: [
-      { id: 'reference_voice', name: 'Reference Voice', type: 'AudioTrack', required: true, description: 'Voice sample to clone' },
-      { id: 'lyrics', name: 'Lyrics', type: 'string', required: true, description: 'Lyrics to sing' },
-      { id: 'melody', name: 'Melody', type: 'MidiTrack', required: false, description: 'Optional melody guide' }
-    ],
-    outputs: [
-      { id: 'vocal', name: 'Cloned Vocal', type: 'AudioTrack', description: 'Generated vocal performance' }
-    ]
-  },
-  {
-    id: '4',
-    name: 'ACE-Step Stem Separator',
-    description: 'Intelligent music stem separation and remixing',
-    detailedDescription: `## ACE-Step Stem Separator - Advanced Audio Separation
-
-ACE-Step's stem separation module uses advanced AI to isolate and manipulate individual musical elements for remixing and production workflows.
-
-### Separation Capabilities
-- **Vocal Extraction**: Clean vocal isolation from mixed tracks
-- **Instrumental Stems**: Separate drums, bass, guitar, piano, strings
-- **Harmonic Analysis**: Identify and separate chord progressions
-- **Rhythmic Elements**: Isolate percussion and rhythmic components
-
-### Advanced Features
-- **Smart Accompaniment**: Generate complementary instrument tracks
-- **Style Adaptation**: Transform separated stems into different genres
-- **Quality Enhancement**: AI-powered audio restoration and cleanup
-- **Real-time Processing**: Low-latency separation for live applications
-
-### Production Tools
-- **Remix Ready**: Export stems optimized for DAW integration
-- **Loop Creation**: Generate seamless loops from separated elements
-- **Mashup Support**: Combine elements from multiple tracks
-- **Creative Effects**: Apply AI-driven transformations to stems
-
-Perfect for DJs, producers, and remixers who need professional-quality stem separation with creative flexibility.
-
-*This is a specialized AI module for audio separation and stem processing.*`,
-    createdAt: '2024-01-16T11:30:00Z',
-    isModule: true,
-    inputs: [
-      { id: 'mixed_audio', name: 'Mixed Audio', type: 'AudioTrack', required: true, description: 'Full mix to separate' },
-      { id: 'separation_type', name: 'Separation Type', type: 'string', required: true, description: 'Type of stems to extract (vocals, drums, bass, etc.)' }
-    ],
-    outputs: [
-      { id: 'stems', name: 'Separated Stems', type: 'AudioTrack[]', description: 'Individual instrument/vocal tracks' }
-    ]
-  },
-  {
-    id: '5',
-    name: 'Audio to MIDI Converter',
-    description: 'Convert audio recordings to MIDI using advanced pitch detection',
-    detailedDescription: `## Audio to MIDI Converter - Advanced Pitch Detection
-
-A sophisticated AI-powered converter that analyzes audio recordings and extracts MIDI data with high accuracy and musical intelligence.
-
-### Core Technology
-- **Pitch Detection**: Advanced algorithms for fundamental frequency estimation
-- **Onset Detection**: Precise note timing and rhythm analysis
-- **Harmonic Analysis**: Multi-voice polyphonic transcription capability
-- **Noise Filtering**: Robust performance with background noise
-
-### Key Features
-- **Polyphonic Transcription**: Handle multiple simultaneous notes
-- **Instrument Recognition**: Optimized for different instrument types
-- **Rhythm Quantization**: Smart timing correction and beat alignment
-- **Dynamic Analysis**: Velocity mapping from audio amplitude
-
-### Advanced Capabilities
-- **Real-time Processing**: Low-latency conversion for live performance
-- **Multi-track Support**: Separate stems into individual MIDI tracks
-- **Genre Adaptation**: Optimized algorithms for different musical styles
-- **Quality Control**: Confidence scoring and error detection
-
-Perfect for musicians wanting to transcribe recordings, create backing tracks, or convert audio performances into editable MIDI data for further production work.
-
-*This is a specialized AI module for audio-to-MIDI transcription.*`,
-    createdAt: '2024-01-16T12:15:00Z',
-    isModule: true,
-    inputs: [
-      { id: 'audio_input', name: 'Audio Input', type: 'AudioTrack', required: true, description: 'Audio recording to convert' },
-      { id: 'instrument_type', name: 'Instrument Type', type: 'string', required: false, description: 'Type of instrument (piano, guitar, vocals, etc.)' }
-    ],
-    outputs: [
-      { id: 'midi_output', name: 'MIDI Output', type: 'MidiTrack', description: 'Converted MIDI track' }
     ]
   }
 ];
