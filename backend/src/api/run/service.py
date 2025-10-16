@@ -4,11 +4,24 @@ from src.api.run.dto.run_dto import RunCreateRequest, Response, DeleteResponse
 
 
 def create_run(run_request: RunCreateRequest) -> Response:
-    # First create the workflow
-    workflow_response = workflow_service.create_workflow(run_request.workflow)
+    workflow_id: int
 
-    # Then create the run with the workflow ID
-    db_run = repository.create_run(workflow_response.id)
+    if run_request.workflow is not None:
+        # Create the workflow first
+        workflow_response = workflow_service.create_workflow(run_request.workflow)
+        workflow_id = workflow_response.id
+    elif run_request.workflow_id is not None:
+        # Use existing workflow ID
+        workflow_id = run_request.workflow_id
+    elif run_request.module_name is not None:
+        # For module_name, we'll need to handle this case
+        # For now, let's raise an error as module handling might need additional logic
+        raise ValueError("Module name handling not yet implemented")
+    else:
+        raise ValueError("One of workflow, workflow_id, or module_name must be provided")
+
+    # Create the run with the workflow ID
+    db_run = repository.create_run(workflow_id)
 
     return Response(
         id=db_run.id,

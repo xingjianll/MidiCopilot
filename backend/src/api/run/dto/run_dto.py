@@ -5,7 +5,9 @@ from src.core.workflow import WorkflowVo
 
 
 class RunCreateRequest(BaseModel):
-    workflow: WorkflowVo
+    workflow: WorkflowVo | None = None
+    workflow_id: int | None = None
+    module_name: str | None = None
 
 
 class Response(BaseModel):
