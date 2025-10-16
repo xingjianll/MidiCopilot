@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from core.runnable import Runnable
+from src.core.runnable import Runnable
 
 
 class Node(BaseModel):

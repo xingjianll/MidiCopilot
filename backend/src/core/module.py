@@ -27,7 +27,6 @@ class Module[**P, O: TypedDict](Runnable[P, O]):
     def description(cls) -> str:
         raise NotImplementedError()
 
-
     @classmethod
     def registered_subclasses(cls) -> list[ModuleVo]:
         """Return all non-abstract subclasses with their type signatures (as strings)."""
