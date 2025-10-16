@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from src.api.workflow.controller import router as workflow_router
+from src.api.sample.controller import router as sample_router
 from src.database import Base, engine
 
 # Create database tables
@@ -25,6 +26,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(workflow_router)
+app.include_router(sample_router)
 
 @app.get("/health")
 def health_check():
