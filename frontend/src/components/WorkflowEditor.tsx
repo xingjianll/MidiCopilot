@@ -199,6 +199,9 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const [inputValues, setInputValues] = useState<Record<string, any>>({});
   const [parameterNames, setParameterNames] = useState<Record<string, string>>({});
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [workflowName, setWorkflowName] = useState('');
+  const [workflowDescription, setWorkflowDescription] = useState('');
 
   // Fetch modules from backend
   useEffect(() => {
@@ -288,6 +291,8 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
         }
         const workflowData = await response.json();
         setCurrentWorkflow(workflowData);
+        setWorkflowName(workflowData.name || '');
+        setWorkflowDescription(workflowData.description || '');
 
         // Convert WorkflowVo to ReactFlow format
         const reactFlowNodes = workflowData.nodes.map((node: any) => {
@@ -634,8 +639,21 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
+    // Set default values if creating new workflow
+    if (!workflowName && workflowId === 'new') {
+      setWorkflowName(`Workflow_${Date.now()}`);
+    }
+    if (!workflowDescription && workflowId === 'new') {
+      setWorkflowDescription('Workflow created in editor');
+    }
+
+    setShowSaveDialog(true);
+  };
+
+  const handleConfirmSave = async () => {
     setSaving(true);
+    setShowSaveDialog(false);
     try {
       // Convert ReactFlow nodes and edges to WorkflowVo format
       const workflowNodes = nodes.map(node => ({
@@ -669,8 +687,8 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
       });
 
       const workflowVo = {
-        name: currentWorkflow?.name || `Workflow_${Date.now()}`, // Use existing name or generate new
-        description: currentWorkflow?.description || 'Workflow created in editor',
+        name: workflowName || `Workflow_${Date.now()}`,
+        description: workflowDescription || 'Workflow created in editor',
         edges: workflowEdges,
         nodes: workflowNodes
       };
@@ -1337,6 +1355,167 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
               }}
             >
               <AriaExecutionPanel onClose={() => setShowExecutionPanel(false)} />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Save Dialog */}
+      <AnimatePresence>
+        {showSaveDialog && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSaveDialog(false)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: theme.colors.glass.backdrop,
+                zIndex: 60,
+              }}
+            />
+
+            {/* Dialog */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              style={{
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '500px',
+                background: theme.colors.glass.surface,
+                backdropFilter: theme.blur.md,
+                border: `1px solid ${theme.colors.glass.border}`,
+                borderRadius: theme.borderRadius.lg,
+                zIndex: 70,
+                padding: theme.spacing.xl,
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  marginBottom: theme.spacing.lg,
+                  color: theme.colors.text.primary,
+                  fontSize: '1.5rem',
+                  fontWeight: '600',
+                }}
+              >
+                Save Workflow
+              </h2>
+
+              <div style={{ marginBottom: theme.spacing.lg }}>
+                <label
+                  style={{
+                    display: 'block',
+                    color: theme.colors.text.secondary,
+                    fontSize: '0.9rem',
+                    marginBottom: theme.spacing.sm,
+                    fontWeight: '500',
+                  }}
+                >
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={workflowName}
+                  onChange={(e) => setWorkflowName(e.target.value)}
+                  placeholder="Enter workflow name..."
+                  style={{
+                    width: '100%',
+                    padding: theme.spacing.md,
+                    border: `1px solid ${theme.colors.border}`,
+                    borderRadius: theme.borderRadius.md,
+                    background: theme.colors.background,
+                    color: theme.colors.text.primary,
+                    fontSize: '1rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: theme.spacing.xl }}>
+                <label
+                  style={{
+                    display: 'block',
+                    color: theme.colors.text.secondary,
+                    fontSize: '0.9rem',
+                    marginBottom: theme.spacing.sm,
+                    fontWeight: '500',
+                  }}
+                >
+                  Description
+                </label>
+                <textarea
+                  value={workflowDescription}
+                  onChange={(e) => setWorkflowDescription(e.target.value)}
+                  placeholder="Enter workflow description..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: theme.spacing.md,
+                    border: `1px solid ${theme.colors.border}`,
+                    borderRadius: theme.borderRadius.md,
+                    background: theme.colors.background,
+                    color: theme.colors.text.primary,
+                    fontSize: '1rem',
+                    outline: 'none',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: theme.spacing.md, justifyContent: 'flex-end' }}>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowSaveDialog(false)}
+                  style={{
+                    padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+                    background: theme.colors.surface,
+                    color: theme.colors.text.primary,
+                    border: `1px solid ${theme.colors.border}`,
+                    borderRadius: theme.borderRadius.md,
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                  }}
+                >
+                  Cancel
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleConfirmSave}
+                  disabled={!workflowName.trim() || saving}
+                  style={{
+                    padding: `${theme.spacing.md} ${theme.spacing.lg}`,
+                    background: (!workflowName.trim() || saving) ? theme.colors.border : theme.colors.accent.primary,
+                    color: theme.colors.text.primary,
+                    border: 'none',
+                    borderRadius: theme.borderRadius.md,
+                    cursor: (!workflowName.trim() || saving) ? 'not-allowed' : 'pointer',
+                    fontWeight: '500',
+                    opacity: (!workflowName.trim() || saving) ? 0.6 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: theme.spacing.sm,
+                  }}
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? 'Saving...' : 'Save'}
+                </motion.button>
+              </div>
             </motion.div>
           </>
         )}
