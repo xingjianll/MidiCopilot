@@ -1,9 +1,16 @@
 from pydantic import BaseModel
 
-from backend.src.core.graph import Graph
+from src.core.workflow import WorkflowVo
 
 
-class WorkflowDto[T](Graph[T]):
-    graph: dict[str, list[str]]
-    items: dict[str, BaseModel]
-    ...
+class Response(BaseModel):
+    id: int
+    workflow: WorkflowVo
+
+
+class ListResponse(BaseModel):
+    workflows: list[Response]
+
+
+class DeleteResponse(BaseModel):
+    message: str

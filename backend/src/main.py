@@ -1,5 +1,35 @@
 from fastapi import FastAPI
-from src.api.workflow import router
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
-app = FastAPI()
-app.include_router(router)
+from src.api.workflow.controller import router as workflow_router
+from src.database import Base, engine
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title="MidiCopilot API",
+    description="API for managing MIDI workflows and processing",
+    version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure this properly for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(workflow_router)
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    uvicorn.run("src.main:app", host="127.0.0.1", port=8000, reload=True)
