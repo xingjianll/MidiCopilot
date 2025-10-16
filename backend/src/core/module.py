@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 from src.core.runnable import Runnable
 
-
 class ModuleVo(BaseModel):
     name: str
     description: str
@@ -29,6 +28,8 @@ class Module[**P, O: TypedDict](Runnable[P, O]):
     @classmethod
     def registered_subclasses(cls) -> list[ModuleVo]:
         """Return all non-abstract subclasses with their type signatures (as strings)."""
+        from src.core.modules.aria_base import AriaBase
+
         modules: list[ModuleVo] = []
 
         def stringify(type_map: dict[str, Type]) -> dict[str, str]:
@@ -53,19 +54,19 @@ class Module[**P, O: TypedDict](Runnable[P, O]):
 
 
 # example
-class Thing(TypedDict):
-    rt1: float
-    rt2: float
-
-
-class Workflow(Module):
-    @classmethod
-    def description(cls) -> str:
-        return "Workflow"
-    def run(self, a: int, b: str) -> Thing:
-        ...
-
-
-if __name__ == "__main__":
-    w = Workflow()
-    print(Module.registered_subclasses())
+# class Thing(TypedDict):
+#     rt1: float
+#     rt2: float
+#
+#
+# class Workflow(Module):
+#     @classmethod
+#     def description(cls) -> str:
+#         return "Workflow"
+#     def run(self, a: int, b: str) -> Thing:
+#         ...
+#
+#
+# if __name__ == "__main__":
+#     w = Workflow()
+#     print(Module.registered_subclasses())
