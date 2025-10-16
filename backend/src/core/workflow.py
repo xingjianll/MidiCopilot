@@ -19,6 +19,7 @@ class Edge(BaseModel):
     to_parameter: str
 
 class WorkflowVo(BaseModel):
+    name: str
     edges: list[Edge]
     nodes: list[Node]
 

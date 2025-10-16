@@ -5,6 +5,7 @@ import uvicorn
 from src.api.workflow.controller import router as workflow_router
 from src.api.sample.controller import router as sample_router
 from src.api.module.controller import router as module_router
+from src.api.run.controller import router as run_router
 from src.database import Base, engine
 
 # Create database tables
@@ -29,6 +30,7 @@ app.add_middleware(
 app.include_router(workflow_router)
 app.include_router(sample_router)
 app.include_router(module_router)
+app.include_router(run_router)
 
 @app.get("/health")
 def health_check():
