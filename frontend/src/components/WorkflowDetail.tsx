@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Edit, Clock, Cpu, Workflow as WorkflowIcon, X, Loader2, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -33,6 +33,9 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [showResultDrawer, setShowResultDrawer] = useState(false);
   const [resultSample, setResultSample] = useState<Sample | null>(null);
+  const [workflowInputs, setWorkflowInputs] = useState<Array<{name: string, type: string, description?: string, required?: boolean}>>([]);
+  const [workflowOutputs, setWorkflowOutputs] = useState<Array<{name: string, type: string, description?: string}>>([]);
+  const [inputValues, setInputValues] = useState<Record<string, any>>({});
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -42,9 +45,215 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     });
   };
 
+  // Analyze workflow to extract inputs and outputs from InputNode/OutputNode
+  useEffect(() => {
+    const analyzeWorkflow = async () => {
+      if (workflow.isModule) {
+        // For modules, use the existing inputs/outputs
+        setWorkflowInputs(workflow.inputs || []);
+        setWorkflowOutputs(workflow.outputs || []);
+        return;
+      }
+
+      try {
+        // Fetch the workflow data from backend
+        const response = await fetch(`http://localhost:8000/workflow/${workflow.id}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch workflow: ${response.status}`);
+        }
+        const workflowData = await response.json();
+
+        // Fetch module definitions to get type information
+        const modulesResponse = await fetch('http://localhost:8000/module/');
+        if (!modulesResponse.ok) {
+          throw new Error('Failed to fetch modules');
+        }
+        const modules = await modulesResponse.json();
+
+        // Create a map of module names to their definitions
+        const moduleMap = new Map();
+        modules.forEach((module: any) => {
+          moduleMap.set(module.name, module);
+        });
+
+        const inputs: Array<{name: string, type: string, description?: string, required?: boolean}> = [];
+        const outputs: Array<{name: string, type: string, description?: string}> = [];
+
+        // Analyze nodes and edges
+        workflowData.nodes.forEach((node: any) => {
+          if (node.type_ === 'InputNode') {
+            // Find outgoing edges from this InputNode to determine type
+            const outgoingEdges = workflowData.edges.filter((edge: any) => edge.from_uid === node.uid);
+            if (outgoingEdges.length > 0) {
+              outgoingEdges.forEach((edge: any) => {
+                const targetNode = workflowData.nodes.find((n: any) => n.uid === edge.to_uid);
+                if (targetNode && edge.to_parameter) {
+                  // Find the expected input type from the target module
+                  const moduleDefinition = moduleMap.get(targetNode.type_);
+                  if (moduleDefinition && moduleDefinition.inputs && moduleDefinition.inputs[edge.to_parameter]) {
+                    inputs.push({
+                      name: edge.from_parameter || 'input',
+                      type: moduleDefinition.inputs[edge.to_parameter],
+                      description: `Input parameter connected to ${targetNode.type_}.${edge.to_parameter}`,
+                      required: true
+                    });
+                  }
+                }
+              });
+            } else {
+              // No connections, use default
+              inputs.push({
+                name: 'input',
+                type: 'any',
+                description: 'Unconnected input parameter',
+                required: true
+              });
+            }
+          }
+
+          if (node.type_ === 'OutputNode') {
+            // Find incoming edges to this OutputNode to determine type
+            const incomingEdges = workflowData.edges.filter((edge: any) => edge.to_uid === node.uid);
+            if (incomingEdges.length > 0) {
+              incomingEdges.forEach((edge: any) => {
+                const sourceNode = workflowData.nodes.find((n: any) => n.uid === edge.from_uid);
+                if (sourceNode && edge.from_parameter) {
+                  // Find the output type from the source module
+                  const moduleDefinition = moduleMap.get(sourceNode.type_);
+                  if (moduleDefinition && moduleDefinition.outputs && moduleDefinition.outputs[edge.from_parameter]) {
+                    outputs.push({
+                      name: edge.to_parameter || 'output',
+                      type: moduleDefinition.outputs[edge.from_parameter],
+                      description: `Output from ${sourceNode.type_}.${edge.from_parameter}`
+                    });
+                  }
+                }
+              });
+            } else {
+              // No connections, use default
+              outputs.push({
+                name: 'output',
+                type: 'any',
+                description: 'Unconnected output parameter'
+              });
+            }
+          }
+        });
+
+        setWorkflowInputs(inputs);
+        setWorkflowOutputs(outputs);
+      } catch (error) {
+        console.error('Error analyzing workflow:', error);
+        // Fallback to empty arrays
+        setWorkflowInputs([]);
+        setWorkflowOutputs([]);
+      }
+    };
+
+    analyzeWorkflow();
+  }, [workflow]);
+
+  const handleInputValueChange = (inputName: string, value: any) => {
+    setInputValues(prev => ({
+      ...prev,
+      [inputName]: value
+    }));
+  };
+
+  const renderInputField = (input: {name: string, type: string, description?: string, required?: boolean}) => {
+    const currentValue = inputValues[input.name];
+
+    switch (input.type) {
+      case 'str':
+        return (
+          <input
+            type="text"
+            value={currentValue || ''}
+            onChange={(e) => handleInputValueChange(input.name, e.target.value)}
+            placeholder="Enter text..."
+            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md text-sm"
+          />
+        );
+
+      case 'int':
+        return (
+          <input
+            type="number"
+            step="1"
+            value={currentValue || ''}
+            onChange={(e) => handleInputValueChange(input.name, parseInt(e.target.value) || 0)}
+            placeholder="Enter integer..."
+            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md text-sm"
+          />
+        );
+
+      case 'float':
+        return (
+          <input
+            type="number"
+            step="0.01"
+            value={currentValue || ''}
+            onChange={(e) => handleInputValueChange(input.name, parseFloat(e.target.value) || 0.0)}
+            placeholder="Enter decimal..."
+            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md text-sm"
+          />
+        );
+
+      case 'bool':
+        return (
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={input.name}
+                checked={currentValue === true}
+                onChange={() => handleInputValueChange(input.name, true)}
+              />
+              True
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={input.name}
+                checked={currentValue === false}
+                onChange={() => handleInputValueChange(input.name, false)}
+              />
+              False
+            </label>
+          </div>
+        );
+
+      case 'MidiTrack':
+        return (
+          <MidiFileUpload
+            onFileSelect={(file) => handleInputValueChange(input.name, file)}
+            selectedFile={currentValue}
+            onClearFile={() => handleInputValueChange(input.name, null)}
+            allowSampleSelection={true}
+          />
+        );
+
+      default:
+        return (
+          <input
+            type="text"
+            value={currentValue || ''}
+            onChange={(e) => handleInputValueChange(input.name, e.target.value)}
+            placeholder="Enter value..."
+            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md text-sm"
+          />
+        );
+    }
+  };
+
   const handleRun = async () => {
-    if (!selectedFile) {
-      alert('Please select a MIDI file first');
+    // Check if all required inputs have values
+    const missingInputs = workflowInputs.filter(input =>
+      input.required && !inputValues[input.name]
+    );
+
+    if (missingInputs.length > 0) {
+      alert(`Please provide values for required inputs: ${missingInputs.map(i => i.name).join(', ')}`);
       return;
     }
 
@@ -55,55 +264,54 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     setStatusMessage('');
 
     try {
-      // Prepare the input data
-      let inputTrackPath: string;
-
-      if (selectedFile instanceof File) {
-        // For uploaded files, we need to upload them first to get a server path
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        const uploadResponse = await fetch('http://localhost:8000/sample/upload/', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload file');
-        }
-
-        const uploadData = await uploadResponse.json();
-        inputTrackPath = uploadData.path;
-      } else {
-        // Use sample file path
-        // Fetch sample details to get the path
-        const sampleResponse = await fetch(`http://localhost:8000/sample/${selectedFile.sampleId}`);
-        if (!sampleResponse.ok) {
-          throw new Error('Failed to get sample details');
-        }
-        const sampleData = await sampleResponse.json();
-        inputTrackPath = sampleData.path;
-      }
-
       // Prepare run request based on workflow type
       const runRequest: any = {
         inputs: {}
       };
 
+      // Process all input values
+      for (const input of workflowInputs) {
+        const inputValue = inputValues[input.name];
+
+        if (input.type === 'MidiTrack') {
+          // Handle MidiTrack inputs - need to get file path
+          if (inputValue instanceof File) {
+            // For uploaded files, upload first to get server path
+            const formData = new FormData();
+            formData.append('file', inputValue);
+
+            const uploadResponse = await fetch('http://localhost:8000/sample/upload/', {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (!uploadResponse.ok) {
+              throw new Error('Failed to upload file');
+            }
+
+            const uploadData = await uploadResponse.json();
+            runRequest.inputs[input.name] = uploadData.path;
+          } else if (inputValue && typeof inputValue === 'object' && inputValue.sampleId) {
+            // Use sample file path
+            const sampleResponse = await fetch(`http://localhost:8000/sample/${inputValue.sampleId}`);
+            if (!sampleResponse.ok) {
+              throw new Error('Failed to get sample details');
+            }
+            const sampleData = await sampleResponse.json();
+            runRequest.inputs[input.name] = sampleData.path;
+          }
+        } else {
+          // For other types, use the value directly
+          runRequest.inputs[input.name] = inputValue;
+        }
+      }
+
       if (workflow.isModule) {
         // For modules, use module_name
         runRequest.module_name = workflow.id;
-
-        // Map inputs - for MidiTrack type, send the file path
-        workflow.inputs.forEach(input => {
-          if (input.type === 'MidiTrack') {
-            runRequest.inputs[input.id] = inputTrackPath;
-          }
-        });
       } else {
         // For workflows, use workflow_id (converted to number)
         runRequest.workflow_id = parseInt(workflow.id);
-        // TODO: Handle workflow inputs based on workflow structure
       }
 
       console.log('Creating run with request:', runRequest);
@@ -248,60 +456,79 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
       <div>
         <h3 className="text-lg font-semibold mb-4">Inputs</h3>
         <div className="flex flex-col gap-3">
-          {workflow.inputs.map((input) => (
-            <Card key={input.id}>
+          {workflowInputs.length === 0 ? (
+            <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="font-medium">{input.name}</span>
-                  <Badge variant="default" className="text-xs">
-                    {input.type}
-                  </Badge>
-                  {input.required && (
-                    <Badge variant="secondary" className="text-xs">
-                      Required
-                    </Badge>
-                  )}
-                </div>
-                {input.description && (
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {input.description}
-                  </p>
-                )}
-
-                {/* Show file upload for MidiTrack type */}
-                {input.type === 'MidiTrack' && (
-                  <MidiFileUpload
-                    onFileSelect={setSelectedFile}
-                    selectedFile={selectedFile}
-                    onClearFile={() => setSelectedFile(null)}
-                  />
-                )}
+                <p className="text-sm text-muted-foreground text-center">
+                  {workflow.isModule ? 'No inputs defined' : 'No InputNode found in workflow'}
+                </p>
               </CardContent>
             </Card>
-          ))}
+          ) : (
+            workflowInputs.map((input, index) => (
+              <Card key={index}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-medium">{input.name}</span>
+                    <Badge variant="default" className="text-xs">
+                      {input.type}
+                    </Badge>
+                    {input.required && (
+                      <Badge variant="secondary" className="text-xs">
+                        Required
+                      </Badge>
+                    )}
+                  </div>
+                  {input.description && (
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {input.description}
+                    </p>
+                  )}
+
+                  {/* Render dynamic input field */}
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium mb-2">
+                      Value:
+                    </label>
+                    {renderInputField(input)}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </div>
 
       <div>
         <h3 className="text-lg font-semibold mb-4">Outputs</h3>
         <div className="flex flex-col gap-3">
-          {workflow.outputs.map((output) => (
-            <Card key={output.id}>
+          {workflowOutputs.length === 0 ? (
+            <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="font-medium">{output.name}</span>
-                  <Badge variant="default" className="text-xs bg-green-500">
-                    {output.type}
-                  </Badge>
-                </div>
-                {output.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {output.description}
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground text-center">
+                  {workflow.isModule ? 'No outputs defined' : 'No OutputNode found in workflow'}
+                </p>
               </CardContent>
             </Card>
-          ))}
+          ) : (
+            workflowOutputs.map((output, index) => (
+              <Card key={index}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-medium">{output.name}</span>
+                    <Badge variant="default" className="text-xs bg-green-500">
+                      {output.type}
+                    </Badge>
+                  </div>
+                  {output.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {output.description}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </div>
 
@@ -383,7 +610,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
       <div className="flex gap-4">
         <Button
           onClick={handleRun}
-          disabled={!selectedFile || isRunning}
+          disabled={isRunning || workflowInputs.some(input => input.required && !inputValues[input.name])}
           className="flex-1"
           size="lg"
         >

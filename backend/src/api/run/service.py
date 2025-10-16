@@ -25,9 +25,12 @@ def create_run(run_request: RunCreateRequest) -> Response:
         workflow_response = workflow_service.create_workflow(run_request.workflow)
         workflow_id = workflow_response.id
 
+        # Convert any file paths to MidiTrack objects before execution
+        converted_inputs = _convert_inputs_for_workflow_modules(run_request.inputs, run_request.workflow)
+
         # Execute the workflow
         workflow_instance = Workflow(run_request.workflow)
-        execution_result = workflow_instance.run(**run_request.inputs)
+        execution_result = workflow_instance.run(**converted_inputs)
 
     elif run_request.workflow_id is not None:
         # Use existing workflow and execute it
@@ -38,9 +41,12 @@ def create_run(run_request: RunCreateRequest) -> Response:
         if workflow_response is None:
             raise ValueError(f"Workflow with ID {workflow_id} not found")
 
+        # Convert any file paths to MidiTrack objects before execution
+        converted_inputs = _convert_inputs_for_workflow_modules(run_request.inputs, workflow_response)
+
         # Execute the workflow
         workflow_instance = Workflow(workflow_response)
-        execution_result = workflow_instance.run(**run_request.inputs)
+        execution_result = workflow_instance.run(**converted_inputs)
 
     elif run_request.module_name is not None:
         # Execute module directly (no workflow needed)
@@ -137,6 +143,40 @@ def _convert_inputs_for_module(inputs: dict, module_class) -> dict:
         import traceback
         traceback.print_exc()
         return inputs
+
+
+def _convert_inputs_for_workflow_modules(inputs: dict, workflow_vo) -> dict:
+    """
+    Convert file paths to MidiTrack objects for workflow execution.
+    """
+    converted_inputs = inputs.copy()
+
+    # Find all edges going out of InputNodes
+    for edge in workflow_vo.edges:
+        source_node = next((n for n in workflow_vo.nodes if n.uid == edge.from_uid), None)
+        target_node = next((n for n in workflow_vo.nodes if n.uid == edge.to_uid), None)
+
+        if (source_node and source_node.type_ == "InputNode" and
+            target_node and target_node.type_ not in ["InputNode", "OutputNode"]):
+
+            # Check if this edge's from_parameter matches an input field
+            if edge.from_parameter in inputs:
+                # Get target module class to check if it expects MidiTrack
+                module_class = _get_module_class(target_node.type_)
+                if module_class:
+                    try:
+                        params, _ = module_class.get_sig()
+                        param_type = params.get(edge.to_parameter)
+                        param_type_name = getattr(param_type, '__name__', str(param_type))
+
+                        if param_type_name == 'MidiTrack' or param_type == TrackTick:
+                            input_value = inputs[edge.from_parameter]
+                            if isinstance(input_value, str):
+                                converted_inputs[edge.from_parameter] = _load_midi_track_from_path(input_value)
+                    except Exception as e:
+                        print(f"Warning: Could not check parameter type: {e}")
+
+    return converted_inputs
 
 
 def _load_midi_track_from_path(file_path: str):

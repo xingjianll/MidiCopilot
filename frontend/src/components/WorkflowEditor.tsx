@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactFlow, {
   Node,
@@ -14,11 +14,12 @@ import ReactFlow, {
   Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Save, Play, ArrowLeft, Cpu } from 'lucide-react';
+import { Save, Play, ArrowLeft, Cpu, Loader2, ArrowRight, ArrowDown } from 'lucide-react';
 import { theme } from '../theme';
-import { mockWorkflows } from '../mockData';
+import { Workflow } from '../types';
 import { WorkflowDetail } from './WorkflowDetail';
 import { AriaExecutionPanel } from './AriaExecutionPanel';
+import { MidiFileUpload } from './MidiFileUpload';
 
 interface WorkflowEditorProps {
   workflowId?: string;
@@ -31,6 +32,26 @@ const ModuleNode = ({ data }: { data: any }) => {
   const isSelected = data.isSelected;
   const handleSpacing = 32; // Spacing between handles
   const startingTop = 100; // Where first handle starts
+
+  // Get inferred types for special nodes
+  const getInferredWorkflow = () => {
+    if (!workflow || (workflow.name !== 'InputNode' && workflow.name !== 'OutputNode')) {
+      return workflow;
+    }
+
+    // For special nodes, use inferred types from data if available
+    if (data.inferredInputs || data.inferredOutputs) {
+      return {
+        ...workflow,
+        inputs: data.inferredInputs || workflow.inputs,
+        outputs: data.inferredOutputs || workflow.outputs
+      };
+    }
+
+    return workflow;
+  };
+
+  const displayWorkflow = getInferredWorkflow();
   
   return (
     <div
@@ -46,7 +67,7 @@ const ModuleNode = ({ data }: { data: any }) => {
       }}
     >
       {/* Input handles on the left */}
-      {workflow.inputs.map((input: any, index: number) => (
+      {displayWorkflow.inputs.map((input: any, index: number) => (
         <Handle
           key={`input-${input.id}`}
           type="target"
@@ -63,7 +84,7 @@ const ModuleNode = ({ data }: { data: any }) => {
       ))}
 
       {/* Output handles on the right */}
-      {workflow.outputs.map((output: any, index: number) => (
+      {displayWorkflow.outputs.map((output: any, index: number) => (
         <Handle
           key={`output-${output.id}`}
           type="source"
@@ -81,9 +102,15 @@ const ModuleNode = ({ data }: { data: any }) => {
 
       {/* Node header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-        <Cpu size={22} color={theme.colors.accent.primary} />
+        {displayWorkflow.name === 'InputNode' ? (
+          <ArrowRight size={22} color={theme.colors.accent.primary} />
+        ) : displayWorkflow.name === 'OutputNode' ? (
+          <ArrowDown size={22} color={theme.colors.accent.primary} />
+        ) : (
+          <Cpu size={22} color={theme.colors.accent.primary} />
+        )}
         <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>
-          {workflow.name}
+          {displayWorkflow.name}
         </div>
       </div>
       
@@ -97,17 +124,17 @@ const ModuleNode = ({ data }: { data: any }) => {
         overflow: 'hidden',
         textOverflow: 'ellipsis',
       }}>
-        {workflow.description}
+        {displayWorkflow.description}
       </div>
 
       {/* Input annotations aligned with handles */}
-      {workflow.inputs.length > 0 && (
+      {displayWorkflow.inputs.length > 0 && (
         <div style={{ 
           position: 'absolute',
           left: theme.spacing.lg,
           top: `${startingTop - 8}px`,
         }}>
-          {workflow.inputs.map((input: any, index: number) => (
+          {displayWorkflow.inputs.map((input: any, index: number) => (
             <div key={input.id} style={{ 
               height: `${handleSpacing}px`,
               display: 'flex',
@@ -124,13 +151,13 @@ const ModuleNode = ({ data }: { data: any }) => {
       )}
 
       {/* Output annotations aligned with handles */}
-      {workflow.outputs.length > 0 && (
+      {displayWorkflow.outputs.length > 0 && (
         <div style={{ 
           position: 'absolute',
           right: theme.spacing.lg,
           top: `${startingTop - 8}px`,
         }}>
-          {workflow.outputs.map((output: any, index: number) => (
+          {displayWorkflow.outputs.map((output: any, index: number) => (
             <div key={output.id} style={{ 
               height: `${handleSpacing}px`,
               display: 'flex',
@@ -155,23 +182,249 @@ const nodeTypes = {
   module: ModuleNode,
 };
 
-const initialNodes: Node[] = [
-  {
-    id: '1',
-    type: 'module',
-    data: { workflow: mockWorkflows[0] }, // Aria (MidiTrack -> MidiTrack)
-    position: { x: 400, y: 150 },
-  },
-];
-
+const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
 export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBack }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [selectedWorkflows] = useState(mockWorkflows);
-  const [selectedWorkflow, setSelectedWorkflow] = useState<any | null>(null);
+  const [modules, setModules] = useState<Workflow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [showExecutionPanel, setShowExecutionPanel] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [workflowInputs, setWorkflowInputs] = useState<Array<{name: string, type: string, nodeId: string}>>([]);
+  const [workflowOutputs, setWorkflowOutputs] = useState<Array<{name: string, type: string, nodeId: string}>>([]);
+  const [currentWorkflow, setCurrentWorkflow] = useState<any>(null);
+  const [loadingWorkflow, setLoadingWorkflow] = useState(false);
+  const [inputValues, setInputValues] = useState<Record<string, any>>({});
+  const [parameterNames, setParameterNames] = useState<Record<string, string>>({});
+
+  // Fetch modules from backend
+  useEffect(() => {
+    const fetchModules = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('http://localhost:8000/module/');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch modules: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // Transform module API response to frontend format
+        const transformedModules: Workflow[] = data.map((module: any) => {
+          const inputs = Object.entries(module.inputs || {}).map(([key, type]: [string, any]) => ({
+            id: key,
+            name: key,
+            type: type as string,
+            required: true,
+            description: `Input parameter of type ${type}`
+          }));
+
+          const outputs = Object.entries(module.outputs || {}).map(([key, type]: [string, any]) => ({
+            id: key,
+            name: key,
+            type: type as string,
+            description: `Output parameter of type ${type}`
+          }));
+
+          return {
+            id: module.name,
+            name: module.name,
+            description: module.description,
+            detailedDescription: module.description,
+            createdAt: new Date().toISOString(),
+            isModule: true,
+            inputs,
+            outputs
+          };
+        });
+
+        // Add special nodes
+        const specialNodes: Workflow[] = [
+          {
+            id: 'InputNode',
+            name: 'InputNode',
+            description: 'Input node for workflow - provides input parameters',
+            detailedDescription: 'Input node for workflow - provides input parameters',
+            createdAt: new Date().toISOString(),
+            isModule: true,
+            inputs: [],
+            outputs: [{ id: 'user_defined', name: 'user_defined', type: 'any', description: 'User-defined output parameter' }]
+          },
+          {
+            id: 'OutputNode',
+            name: 'OutputNode',
+            description: 'Output node for workflow - collects final results',
+            detailedDescription: 'Output node for workflow - collects final results',
+            createdAt: new Date().toISOString(),
+            isModule: true,
+            inputs: [{ id: 'user_defined', name: 'user_defined', type: 'any', required: true, description: 'User-defined input parameter' }],
+            outputs: []
+          }
+        ];
+
+        setModules([...specialNodes, ...transformedModules]);
+      } catch (err: any) {
+        console.error('Error fetching modules:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchModules();
+  }, []);
+
+  // Load existing workflow if workflowId is provided
+  useEffect(() => {
+    const loadWorkflow = async () => {
+      if (!workflowId || workflowId === 'new') return;
+
+      setLoadingWorkflow(true);
+      try {
+        const response = await fetch(`http://localhost:8000/workflow/${workflowId}`);
+        if (!response.ok) {
+          throw new Error(`Failed to load workflow: ${response.status}`);
+        }
+        const workflowData = await response.json();
+        setCurrentWorkflow(workflowData);
+
+        // Convert WorkflowVo to ReactFlow format
+        const reactFlowNodes = workflowData.nodes.map((node: any) => {
+          // Find the module definition for this node type
+          const moduleDefinition = modules.find(m => m.name === node.type_);
+
+          return {
+            id: node.uid,
+            type: 'module',
+            position: { x: node.x, y: node.y },
+            data: {
+              workflow: moduleDefinition || {
+                id: node.type_,
+                name: node.type_,
+                description: `Module: ${node.type_}`,
+                isModule: true,
+                inputs: [],
+                outputs: []
+              }
+            }
+          };
+        });
+
+        const reactFlowEdges = workflowData.edges.map((edge: any) => ({
+          id: `${edge.from_uid}-${edge.to_uid}`,
+          source: edge.from_uid,
+          target: edge.to_uid,
+          sourceHandle: edge.from_parameter,
+          targetHandle: edge.to_parameter,
+        }));
+
+        // Load user-defined parameter names from edges
+        const loadedParameterNames: Record<string, string> = {};
+        workflowData.edges.forEach((edge: any) => {
+          // Extract parameter names from the edges for special nodes
+          const sourceNode = workflowData.nodes.find((n: any) => n.uid === edge.from_uid);
+          const targetNode = workflowData.nodes.find((n: any) => n.uid === edge.to_uid);
+
+          if (sourceNode?.type_ === 'InputNode' && edge.from_parameter) {
+            loadedParameterNames[`${edge.from_uid}_output`] = edge.from_parameter;
+          }
+          if (targetNode?.type_ === 'OutputNode' && edge.to_parameter) {
+            loadedParameterNames[`${edge.to_uid}_input`] = edge.to_parameter;
+          }
+        });
+
+        setParameterNames(loadedParameterNames);
+        setNodes(reactFlowNodes);
+        setEdges(reactFlowEdges);
+      } catch (error) {
+        console.error('Error loading workflow:', error);
+        alert('Failed to load workflow');
+      } finally {
+        setLoadingWorkflow(false);
+      }
+    };
+
+    // Only load workflow after modules are loaded
+    if (!loading && modules.length > 0) {
+      loadWorkflow();
+    }
+  }, [workflowId, loading, modules, setNodes, setEdges]);
+
+  // Analyze workflow to extract inputs and outputs
+  const analyzeWorkflow = useCallback(() => {
+    const inputs: Array<{name: string, type: string, nodeId: string}> = [];
+    const outputs: Array<{name: string, type: string, nodeId: string}> = [];
+
+    nodes.forEach(node => {
+      if (node.data?.workflow?.name === 'InputNode') {
+        // Find outgoing edges from this InputNode to determine type
+        const outgoingEdges = edges.filter(edge => edge.source === node.id);
+        if (outgoingEdges.length > 0) {
+          outgoingEdges.forEach(edge => {
+            const targetNode = nodes.find(n => n.id === edge.target);
+            if (targetNode && edge.targetHandle) {
+              // Find the expected input type from the target module
+              const targetInput = targetNode.data?.workflow?.inputs?.find((input: any) => input.id === edge.targetHandle);
+              const paramKey = `${node.id}_${edge.sourceHandle || 'output'}`;
+              const paramName = parameterNames[paramKey] || edge.sourceHandle || 'input';
+              inputs.push({
+                name: paramName,
+                type: targetInput?.type || 'any',
+                nodeId: node.id
+              });
+            }
+          });
+        } else {
+          // No connections, use user-defined name or default
+          const paramKey = `${node.id}_output`;
+          const paramName = parameterNames[paramKey] || 'input';
+          inputs.push({
+            name: paramName,
+            type: 'any',
+            nodeId: node.id
+          });
+        }
+      }
+
+      if (node.data?.workflow?.name === 'OutputNode') {
+        // Find incoming edges to this OutputNode to determine type
+        const incomingEdges = edges.filter(edge => edge.target === node.id);
+        if (incomingEdges.length > 0) {
+          incomingEdges.forEach(edge => {
+            const sourceNode = nodes.find(n => n.id === edge.source);
+            if (sourceNode && edge.sourceHandle) {
+              // Find the output type from the source module
+              const sourceOutput = sourceNode.data?.workflow?.outputs?.find((output: any) => output.id === edge.sourceHandle);
+              const paramKey = `${node.id}_${edge.targetHandle || 'input'}`;
+              const paramName = parameterNames[paramKey] || edge.targetHandle || 'output';
+              outputs.push({
+                name: paramName,
+                type: sourceOutput?.type || 'any',
+                nodeId: node.id
+              });
+            }
+          });
+        } else {
+          // No connections, use user-defined name or default
+          const paramKey = `${node.id}_input`;
+          const paramName = parameterNames[paramKey] || 'output';
+          outputs.push({
+            name: paramName,
+            type: 'any',
+            nodeId: node.id
+          });
+        }
+      }
+    });
+
+    setWorkflowInputs(inputs);
+    setWorkflowOutputs(outputs);
+  }, [nodes, edges, parameterNames]);
+
+  useEffect(() => {
+    analyzeWorkflow();
+  }, [analyzeWorkflow]);
 
   const onConnect = useCallback(
     (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -244,6 +497,222 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
   const closeDetail = () => {
     setSelectedWorkflow(null);
   };
+
+  const handleParameterNameChange = (nodeId: string, handleType: 'input' | 'output', newName: string) => {
+    const paramKey = `${nodeId}_${handleType}`;
+    setParameterNames(prev => ({
+      ...prev,
+      [paramKey]: newName
+    }));
+  };
+
+  const handleInputValueChange = (inputName: string, value: any) => {
+    setInputValues(prev => ({
+      ...prev,
+      [inputName]: value
+    }));
+  };
+
+  const renderInputField = (input: {name: string, type: string, nodeId: string}) => {
+    const inputKey = `${input.nodeId}_${input.name}`;
+    const currentValue = inputValues[inputKey];
+
+    switch (input.type) {
+      case 'str':
+        return (
+          <input
+            type="text"
+            value={currentValue || ''}
+            onChange={(e) => handleInputValueChange(inputKey, e.target.value)}
+            placeholder="Enter text..."
+            style={{
+              width: '100%',
+              padding: theme.spacing.sm,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.borderRadius.sm,
+              background: theme.colors.background,
+              color: theme.colors.text.primary,
+              fontSize: '0.8rem',
+            }}
+          />
+        );
+
+      case 'int':
+        return (
+          <input
+            type="number"
+            step="1"
+            value={currentValue || ''}
+            onChange={(e) => handleInputValueChange(inputKey, parseInt(e.target.value) || 0)}
+            placeholder="Enter integer..."
+            style={{
+              width: '100%',
+              padding: theme.spacing.sm,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.borderRadius.sm,
+              background: theme.colors.background,
+              color: theme.colors.text.primary,
+              fontSize: '0.8rem',
+            }}
+          />
+        );
+
+      case 'float':
+        return (
+          <input
+            type="number"
+            step="0.01"
+            value={currentValue || ''}
+            onChange={(e) => handleInputValueChange(inputKey, parseFloat(e.target.value) || 0.0)}
+            placeholder="Enter decimal..."
+            style={{
+              width: '100%',
+              padding: theme.spacing.sm,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.borderRadius.sm,
+              background: theme.colors.background,
+              color: theme.colors.text.primary,
+              fontSize: '0.8rem',
+            }}
+          />
+        );
+
+      case 'bool':
+        return (
+          <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', color: theme.colors.text.primary, fontSize: '0.8rem' }}>
+              <input
+                type="radio"
+                name={inputKey}
+                checked={currentValue === true}
+                onChange={() => handleInputValueChange(inputKey, true)}
+              />
+              True
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', color: theme.colors.text.primary, fontSize: '0.8rem' }}>
+              <input
+                type="radio"
+                name={inputKey}
+                checked={currentValue === false}
+                onChange={() => handleInputValueChange(inputKey, false)}
+              />
+              False
+            </label>
+          </div>
+        );
+
+      case 'MidiTrack':
+        return (
+          <div style={{ marginTop: theme.spacing.xs }}>
+            <MidiFileUpload
+              onFileSelect={(file) => handleInputValueChange(inputKey, file)}
+              selectedFile={currentValue}
+              onClearFile={() => handleInputValueChange(inputKey, null)}
+              allowSampleSelection={true}
+            />
+          </div>
+        );
+
+      default:
+        return (
+          <input
+            type="text"
+            value={currentValue || ''}
+            onChange={(e) => handleInputValueChange(inputKey, e.target.value)}
+            placeholder="Enter value..."
+            style={{
+              width: '100%',
+              padding: theme.spacing.sm,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.borderRadius.sm,
+              background: theme.colors.background,
+              color: theme.colors.text.primary,
+              fontSize: '0.8rem',
+            }}
+          />
+        );
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Convert ReactFlow nodes and edges to WorkflowVo format
+      const workflowNodes = nodes.map(node => ({
+        uid: node.id,
+        type_: node.data.workflow.name, // Use module name as type
+        x: node.position.x,
+        y: node.position.y
+      }));
+
+      const workflowEdges = edges.map(edge => {
+        const sourceNode = nodes.find(n => n.id === edge.source);
+        const targetNode = nodes.find(n => n.id === edge.target);
+
+        let fromParameter = edge.sourceHandle || '';
+        let toParameter = edge.targetHandle || '';
+
+        // Use custom parameter names for special nodes
+        if (sourceNode?.data?.workflow?.name === 'InputNode') {
+          fromParameter = parameterNames[`${edge.source}_output`] || edge.sourceHandle || '';
+        }
+        if (targetNode?.data?.workflow?.name === 'OutputNode') {
+          toParameter = parameterNames[`${edge.target}_input`] || edge.targetHandle || '';
+        }
+
+        return {
+          from_uid: edge.source,
+          from_parameter: fromParameter,
+          to_uid: edge.target,
+          to_parameter: toParameter
+        };
+      });
+
+      const workflowVo = {
+        name: currentWorkflow?.name || `Workflow_${Date.now()}`, // Use existing name or generate new
+        description: currentWorkflow?.description || 'Workflow created in editor',
+        edges: workflowEdges,
+        nodes: workflowNodes
+      };
+
+      const isEditing = workflowId && workflowId !== 'new';
+      const url = isEditing
+        ? `http://localhost:8000/workflow/${workflowId}`
+        : 'http://localhost:8000/workflow/';
+
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(workflowVo),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save workflow: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Workflow saved successfully:', result);
+      alert(isEditing ? 'Workflow updated successfully!' : 'Workflow saved successfully!');
+    } catch (error) {
+      console.error('Error saving workflow:', error);
+      alert('Failed to save workflow');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loadingWorkflow) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: theme.colors.background }}>
+        <div style={{ textAlign: 'center' }}>
+          <Loader2 size={48} className="animate-spin" style={{ color: theme.colors.accent.primary, marginBottom: theme.spacing.md }} />
+          <p style={{ color: theme.colors.text.secondary, margin: 0 }}>Loading workflow...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -326,81 +795,85 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
             }}
             onClick={() => setSelectedWorkflow(null)}
           >
-            Modules & Workflows
+            Modules
           </h3>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-            {selectedWorkflows.map((workflow) => (
-              <motion.div
-                key={workflow.id}
-                draggable
-                onDragStart={(event) => onDragStart(event, workflow)}
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent bubbling to parent
-                  handleWorkflowClick(workflow);
-                }}
-                whileHover={{ scale: 1.02 }}
-                style={{
-                  padding: theme.spacing.md,
-                  background: theme.colors.surface,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.borderRadius.md,
-                  cursor: 'grab',
-                  userSelect: 'none',
-                }}
-              >
-                <div
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl }}>
+              <Loader2 size={24} className="animate-spin" style={{ color: theme.colors.text.secondary }} />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+              {modules.map((module) => (
+                <motion.div
+                  key={module.id}
+                  draggable
+                  onDragStart={(event) => onDragStart(event, module)}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent bubbling to parent
+                    handleWorkflowClick(module);
+                  }}
+                  whileHover={{ scale: 1.02 }}
                   style={{
-                    color: theme.colors.text.primary,
-                    fontWeight: '500',
-                    fontSize: '0.9rem',
-                    marginBottom: theme.spacing.xs,
+                    padding: theme.spacing.md,
+                    background: theme.colors.surface,
+                    border: `1px solid ${theme.colors.border}`,
+                    borderRadius: theme.borderRadius.md,
+                    cursor: 'grab',
+                    userSelect: 'none',
                   }}
                 >
-                  {workflow.name}
-                </div>
-                <div
-                  style={{
-                    color: theme.colors.text.secondary,
-                    fontSize: '0.8rem',
-                    lineHeight: '1.3',
-                  }}
-                >
-                  {workflow.description}
-                </div>
-                <div style={{ marginTop: theme.spacing.xs }}>
-                  <span
+                  <div
                     style={{
-                      background: workflow.isModule 
-                        ? theme.colors.accent.secondary 
-                        : theme.colors.accent.primary,
                       color: theme.colors.text.primary,
-                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                      borderRadius: theme.borderRadius.sm,
-                      fontSize: '0.7rem',
                       fontWeight: '500',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
+                      fontSize: '0.9rem',
+                      marginBottom: theme.spacing.xs,
                     }}
                   >
-                    {workflow.isModule ? 'Module' : 'Workflow'}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
+                    {module.name}
+                  </div>
+                  <div
+                    style={{
+                      color: theme.colors.text.secondary,
+                      fontSize: '0.8rem',
+                      lineHeight: '1.3',
+                    }}
+                  >
+                    {module.description}
+                  </div>
+                  <div style={{ marginTop: theme.spacing.xs }}>
+                    <span
+                      style={{
+                        background: theme.colors.accent.secondary,
+                        color: theme.colors.text.primary,
+                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                        borderRadius: theme.borderRadius.sm,
+                        fontSize: '0.7rem',
+                        fontWeight: '500',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      Module
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
             
-            {/* Clear selection area */}
-            <div 
-              style={{ 
-                height: '100px', 
-                flexGrow: 1,
-                minHeight: '20px',
-              }}
-              onClick={() => {
-                setSelectedWorkflow(null);
-              }}
-            />
-          </div>
+              {/* Clear selection area */}
+              <div
+                style={{
+                  height: '100px',
+                  flexGrow: 1,
+                  minHeight: '20px',
+                }}
+                onClick={() => {
+                  setSelectedWorkflow(null);
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -416,36 +889,53 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
             backdropFilter: theme.blur.sm,
           }}
         >
-          <h1
-            style={{
-              margin: 0,
-              color: theme.colors.text.primary,
-              fontSize: '1.5rem',
-              fontWeight: '600',
-            }}
-          >
-            Workflow Editor
-          </h1>
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                color: theme.colors.text.primary,
+                fontSize: '1.5rem',
+                fontWeight: '600',
+              }}
+            >
+              {currentWorkflow?.name || 'Workflow Editor'}
+            </h1>
+            {currentWorkflow && (
+              <p
+                style={{
+                  margin: 0,
+                  marginTop: '4px',
+                  color: theme.colors.text.secondary,
+                  fontSize: '0.9rem',
+                }}
+              >
+                {currentWorkflow.description}
+              </p>
+            )}
+          </div>
           
           <div style={{ display: 'flex', gap: theme.spacing.md }}>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={handleSave}
+              disabled={saving}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: theme.spacing.sm,
                 padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-                background: theme.colors.surface,
+                background: saving ? theme.colors.border : theme.colors.surface,
                 color: theme.colors.text.primary,
                 border: `1px solid ${theme.colors.border}`,
                 borderRadius: theme.borderRadius.lg,
-                cursor: 'pointer',
+                cursor: saving ? 'not-allowed' : 'pointer',
                 fontWeight: '500',
+                opacity: saving ? 0.6 : 1,
               }}
             >
-              <Save size={16} />
-              Save
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {saving ? 'Saving...' : 'Save'}
             </motion.button>
             
             <motion.button
@@ -471,16 +961,45 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
           </div>
         </div>
 
-        <div style={{ flex: 1, background: theme.colors.background }}>
-          <ReactFlow
-            nodes={nodes.map(node => ({
-              ...node,
-              selected: false, // Disable ReactFlow's built-in selection
-              data: {
-                ...node.data,
-                isSelected: selectedWorkflow?.id === node.data?.workflow?.id
+        <div style={{ flex: 1, display: 'flex' }}>
+          <div style={{ flex: 1, background: theme.colors.background }}>
+            <ReactFlow
+            nodes={nodes.map(node => {
+              const baseNode = {
+                ...node,
+                selected: false, // Disable ReactFlow's built-in selection
+                data: {
+                  ...node.data,
+                  isSelected: selectedWorkflow?.id === node.data?.workflow?.id
+                }
+              };
+
+              // Add inferred types for special nodes
+              if (node.data?.workflow?.name === 'InputNode') {
+                const nodeInputs = workflowInputs.filter(input => input.nodeId === node.id);
+                if (nodeInputs.length > 0) {
+                  baseNode.data.inferredOutputs = nodeInputs.map(input => ({
+                    id: 'user_defined',
+                    name: parameterNames[`${node.id}_output`] || 'user_defined',
+                    type: input.type,
+                    description: 'User-defined output parameter'
+                  }));
+                }
+              } else if (node.data?.workflow?.name === 'OutputNode') {
+                const nodeOutputs = workflowOutputs.filter(output => output.nodeId === node.id);
+                if (nodeOutputs.length > 0) {
+                  baseNode.data.inferredInputs = nodeOutputs.map(output => ({
+                    id: 'user_defined',
+                    name: parameterNames[`${node.id}_input`] || 'user_defined',
+                    type: output.type,
+                    required: true,
+                    description: 'User-defined input parameter'
+                  }));
+                }
               }
-            }))}
+
+              return baseNode;
+            })}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
@@ -514,6 +1033,220 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
               color={theme.colors.border}
             />
           </ReactFlow>
+          </div>
+
+          {/* Right Sidebar - Workflow I/O */}
+          <div
+            style={{
+              width: '300px',
+              background: theme.colors.glass.surface,
+              backdropFilter: theme.blur.md,
+              borderLeft: `1px solid ${theme.colors.glass.border}`,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div
+              style={{
+                padding: theme.spacing.lg,
+                borderBottom: `1px solid ${theme.colors.border}`,
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  color: theme.colors.text.primary,
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                }}
+              >
+                Workflow I/O
+              </h3>
+            </div>
+
+            <div style={{ flex: 1, overflow: 'auto', padding: theme.spacing.lg }}>
+              {/* Inputs Section */}
+              <div style={{ marginBottom: theme.spacing.xl }}>
+                <h4
+                  style={{
+                    margin: 0,
+                    marginBottom: theme.spacing.md,
+                    color: theme.colors.text.primary,
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                  }}
+                >
+                  Inputs ({workflowInputs.length})
+                </h4>
+                {workflowInputs.length === 0 ? (
+                  <div
+                    style={{
+                      padding: theme.spacing.md,
+                      background: theme.colors.surface,
+                      border: `1px dashed ${theme.colors.border}`,
+                      borderRadius: theme.borderRadius.md,
+                      textAlign: 'center',
+                      color: theme.colors.text.secondary,
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    Add InputNode to define workflow inputs
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+                    {workflowInputs.map((input, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          padding: theme.spacing.md,
+                          background: theme.colors.surface,
+                          border: `1px solid ${theme.colors.border}`,
+                          borderRadius: theme.borderRadius.md,
+                        }}
+                      >
+                        <div style={{ marginBottom: theme.spacing.sm }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              color: theme.colors.text.secondary,
+                              fontSize: '0.7rem',
+                              marginBottom: '4px',
+                              fontWeight: '500',
+                            }}
+                          >
+                            Parameter Name:
+                          </label>
+                          <input
+                            type="text"
+                            value={parameterNames[`${input.nodeId}_output`] || ''}
+                            onChange={(e) => handleParameterNameChange(input.nodeId, 'output', e.target.value)}
+                            placeholder="Enter parameter name..."
+                            style={{
+                              width: '100%',
+                              padding: theme.spacing.xs,
+                              border: `1px solid ${theme.colors.border}`,
+                              borderRadius: theme.borderRadius.sm,
+                              background: theme.colors.background,
+                              color: theme.colors.text.primary,
+                              fontSize: '0.8rem',
+                              fontWeight: '500',
+                            }}
+                          />
+                        </div>
+                        <div
+                          style={{
+                            color: theme.colors.accent.secondary,
+                            fontSize: '0.7rem',
+                            fontFamily: 'monospace',
+                            marginBottom: theme.spacing.sm,
+                          }}
+                        >
+                          Type: {input.type}
+                        </div>
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              color: theme.colors.text.secondary,
+                              fontSize: '0.7rem',
+                              marginBottom: '4px',
+                              fontWeight: '500',
+                            }}
+                          >
+                            Value:
+                          </label>
+                          {renderInputField(input)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Outputs Section */}
+              <div>
+                <h4
+                  style={{
+                    margin: 0,
+                    marginBottom: theme.spacing.md,
+                    color: theme.colors.text.primary,
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                  }}
+                >
+                  Outputs ({workflowOutputs.length})
+                </h4>
+                {workflowOutputs.length === 0 ? (
+                  <div
+                    style={{
+                      padding: theme.spacing.md,
+                      background: theme.colors.surface,
+                      border: `1px dashed ${theme.colors.border}`,
+                      borderRadius: theme.borderRadius.md,
+                      textAlign: 'center',
+                      color: theme.colors.text.secondary,
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    Add OutputNode to define workflow outputs
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+                    {workflowOutputs.map((output, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          padding: theme.spacing.md,
+                          background: theme.colors.surface,
+                          border: `1px solid ${theme.colors.border}`,
+                          borderRadius: theme.borderRadius.md,
+                        }}
+                      >
+                        <div style={{ marginBottom: theme.spacing.sm }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              color: theme.colors.text.secondary,
+                              fontSize: '0.7rem',
+                              marginBottom: '4px',
+                              fontWeight: '500',
+                            }}
+                          >
+                            Parameter Name:
+                          </label>
+                          <input
+                            type="text"
+                            value={parameterNames[`${output.nodeId}_input`] || ''}
+                            onChange={(e) => handleParameterNameChange(output.nodeId, 'input', e.target.value)}
+                            placeholder="Enter parameter name..."
+                            style={{
+                              width: '100%',
+                              padding: theme.spacing.xs,
+                              border: `1px solid ${theme.colors.border}`,
+                              borderRadius: theme.borderRadius.sm,
+                              background: theme.colors.background,
+                              color: theme.colors.text.primary,
+                              fontSize: '0.8rem',
+                              fontWeight: '500',
+                            }}
+                          />
+                        </div>
+                        <div
+                          style={{
+                            color: theme.colors.accent.secondary,
+                            fontSize: '0.7rem',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          Type: {output.type}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
