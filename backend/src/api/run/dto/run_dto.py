@@ -15,6 +15,7 @@ class Response(BaseModel):
     workflow_id: int
     created_at: datetime
     duration: float | None
+    sample_id: int | None = None
 
 
 class DeleteResponse(BaseModel):
