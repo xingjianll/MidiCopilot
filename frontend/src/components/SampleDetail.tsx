@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Music, Volume2, Clock, HardDrive, FileIcon, Play, Download } from 'lucide-react';
 import { Sample } from '../types';
 import { theme } from '../theme';
+import { PianoRoll } from './PianoRoll';
 
 interface SampleDetailProps {
   sample: Sample;
@@ -216,35 +217,9 @@ export const SampleDetail: React.FC<SampleDetailProps> = ({ sample }) => {
         </div>
       </div>
 
-      <div>
-        <h3
-          style={{
-            margin: 0,
-            marginBottom: theme.spacing.md,
-            color: theme.colors.text.primary,
-            fontSize: '1.1rem',
-            fontWeight: '600',
-          }}
-        >
-          {sample.type === 'midi' ? 'Piano Roll' : 'Waveform'}
-        </h3>
-        <div
-          style={{
-            padding: theme.spacing.xl,
-            background: theme.colors.surface,
-            borderRadius: theme.borderRadius.lg,
-            border: `1px solid ${theme.colors.border}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '200px',
-          }}
-        >
-          <p style={{ color: theme.colors.text.secondary, fontSize: '1.1rem' }}>
-            {sample.type === 'midi' ? 'Piano roll visualization will be implemented here' : 'Audio waveform will be displayed here'}
-          </p>
-        </div>
-      </div>
+      {sample.type === 'midi' && (
+        <PianoRoll sampleId={sample.id} />
+      )}
     </div>
   );
 };
