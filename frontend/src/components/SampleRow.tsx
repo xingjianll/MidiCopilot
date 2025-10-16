@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Clock, Music, Volume2 } from 'lucide-react';
 import { Sample } from '../types';
-import { theme } from '../theme';
+import { Badge } from './ui/badge';
 
 interface SampleRowProps {
   sample: Sample;
@@ -40,94 +40,39 @@ export const SampleRow: React.FC<SampleRowProps> = ({
   const IconComponent = getIcon();
 
   return (
-    <motion.div
-      whileHover={{ backgroundColor: theme.colors.surfaceHover }}
+    <div
+      className={`flex items-center p-4 cursor-pointer border-b transition-colors hover:bg-accent/50 ${
+        isSelected ? 'bg-accent' : ''
+      }`}
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: theme.spacing.md,
-        cursor: 'pointer',
-        backgroundColor: isSelected ? theme.colors.surfaceActive : 'transparent',
-        borderBottom: `1px solid ${theme.colors.border}`,
-        transition: `all ${theme.animation.fast}`,
-      }}
     >
-      <div
-        style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: theme.borderRadius.md,
-          background: sample.type === 'midi' 
-            ? theme.colors.accent.primary 
-            : theme.colors.accent.secondary,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: theme.spacing.md,
-          flexShrink: 0,
-        }}
-      >
-        <IconComponent size={16} />
+      <div className={`w-8 h-8 rounded-md flex items-center justify-center mr-4 flex-shrink-0 ${
+        sample.type === 'midi' ? 'bg-primary' : 'bg-secondary'
+      }`}>
+        <IconComponent className={`h-4 w-4 ${
+          sample.type === 'midi' ? 'text-primary-foreground' : 'text-secondary-foreground'
+        }`} />
       </div>
-      
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            color: theme.colors.text.primary,
-            fontWeight: '500',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+
+      <div className="flex-1 min-w-0">
+        <div className="font-medium truncate">
           {sample.name}
         </div>
-        <div
-          style={{
-            color: theme.colors.text.secondary,
-            fontSize: '0.9rem',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <div className="text-sm text-muted-foreground truncate">
           {sample.format} • {formatDuration(sample.duration)} • {formatFileSize(sample.size)}
         </div>
       </div>
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-        <span
-          style={{
-            background: sample.type === 'midi' 
-              ? theme.colors.accent.primary 
-              : theme.colors.accent.secondary,
-            color: theme.colors.text.primary,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.sm,
-            fontSize: '0.7rem',
-            fontWeight: '500',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}
-        >
+
+      <div className="flex items-center gap-3">
+        <Badge variant={sample.type === 'midi' ? 'default' : 'secondary'} className="text-xs uppercase">
           {sample.type}
-        </span>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-          <Clock size={14} color={theme.colors.text.tertiary} />
-          <span
-            style={{
-              color: theme.colors.text.tertiary,
-              fontSize: '0.8rem',
-              minWidth: '80px',
-              textAlign: 'right',
-            }}
-          >
-            {formatDate(sample.createdAt)}
-          </span>
+        </Badge>
+
+        <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-[80px] text-right">
+          <Clock className="h-3 w-3" />
+          <span>{formatDate(sample.createdAt)}</span>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };

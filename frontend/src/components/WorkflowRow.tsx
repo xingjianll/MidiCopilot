@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Clock, Cpu, Workflow as WorkflowIcon } from 'lucide-react';
 import { Workflow } from '../types';
-import { theme } from '../theme';
+import { Badge } from './ui/badge';
 
 interface WorkflowRowProps {
   workflow: Workflow;
@@ -19,94 +19,43 @@ export const WorkflowRow: React.FC<WorkflowRowProps> = ({
   };
 
   return (
-    <motion.div
-      whileHover={{ backgroundColor: theme.colors.surfaceHover }}
+    <div
+      className={`flex items-center p-4 cursor-pointer border-b transition-colors hover:bg-accent/50 ${
+        isSelected ? 'bg-accent' : ''
+      }`}
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: theme.spacing.md,
-        cursor: 'pointer',
-        backgroundColor: isSelected ? theme.colors.surfaceActive : 'transparent',
-        borderBottom: `1px solid ${theme.colors.border}`,
-        transition: `all ${theme.animation.fast}`,
-      }}
     >
-      <div
-        style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: theme.borderRadius.md,
-          background: workflow.isModule 
-            ? theme.colors.accent.secondary 
-            : theme.colors.accent.primary,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: theme.spacing.md,
-          flexShrink: 0,
-        }}
-      >
-        {workflow.isModule ? <Cpu size={16} /> : <WorkflowIcon size={16} />}
+      <div className={`w-8 h-8 rounded-md flex items-center justify-center mr-4 flex-shrink-0 ${
+        workflow.isModule ? 'bg-secondary' : 'bg-primary'
+      }`}>
+        {workflow.isModule ? (
+          <Cpu className="h-4 w-4 text-secondary-foreground" />
+        ) : (
+          <WorkflowIcon className="h-4 w-4 text-primary-foreground" />
+        )}
       </div>
-      
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            color: theme.colors.text.primary,
-            fontWeight: '500',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+
+      <div className="flex-1 min-w-0">
+        <div className="font-medium truncate">
           {workflow.name}
         </div>
-        <div
-          style={{
-            color: theme.colors.text.secondary,
-            fontSize: '0.9rem',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <div className="text-sm text-muted-foreground truncate">
           {workflow.description}
         </div>
       </div>
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
+
+      <div className="flex items-center gap-3">
         {workflow.isModule && (
-          <span
-            style={{
-              background: theme.colors.accent.secondary,
-              color: theme.colors.text.primary,
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              borderRadius: theme.borderRadius.sm,
-              fontSize: '0.7rem',
-              fontWeight: '500',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
+          <Badge variant="secondary" className="text-xs">
             Module
-          </span>
+          </Badge>
         )}
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-          <Clock size={14} color={theme.colors.text.tertiary} />
-          <span
-            style={{
-              color: theme.colors.text.tertiary,
-              fontSize: '0.8rem',
-              minWidth: '80px',
-              textAlign: 'right',
-            }}
-          >
-            {formatDate(workflow.createdAt)}
-          </span>
+
+        <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-[80px] text-right">
+          <Clock className="h-3 w-3" />
+          <span>{formatDate(workflow.createdAt)}</span>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };

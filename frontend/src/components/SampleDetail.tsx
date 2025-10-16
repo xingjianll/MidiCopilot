@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import { Music, Volume2, Clock, HardDrive, FileIcon, Play, Download } from 'lucide-react';
 import { Sample } from '../types';
-import { theme } from '../theme';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Card, CardContent } from './ui/card';
 import { PianoRoll } from './PianoRoll';
 
 interface SampleDetailProps {
@@ -41,181 +43,67 @@ export const SampleDetail: React.FC<SampleDetailProps> = ({ sample }) => {
   const IconComponent = getIcon();
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-        <div
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: theme.borderRadius.lg,
-            background: sample.type === 'midi' 
-              ? theme.colors.accent.primary 
-              : theme.colors.accent.secondary,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <IconComponent size={24} />
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-4">
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+          sample.type === 'midi' ? 'bg-primary' : 'bg-secondary'
+        }`}>
+          <IconComponent className={`h-6 w-6 ${
+            sample.type === 'midi' ? 'text-primary-foreground' : 'text-secondary-foreground'
+          }`} />
         </div>
-        
+
         <div>
-          <h1
-            style={{
-              margin: 0,
-              color: theme.colors.text.primary,
-              fontSize: '1.5rem',
-              fontWeight: '600',
-            }}
-          >
+          <h1 className="text-2xl font-semibold mb-1">
             {sample.name}
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
-            <Clock size={14} color={theme.colors.text.tertiary} />
-            <span style={{ color: theme.colors.text.tertiary, fontSize: '0.9rem' }}>
-              Created {formatDate(sample.createdAt)}
-            </span>
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span>Created {formatDate(sample.createdAt)}</span>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: theme.spacing.md }}>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-            padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-            background: theme.colors.accent.primary,
-            color: theme.colors.text.primary,
-            border: 'none',
-            borderRadius: theme.borderRadius.lg,
-            cursor: 'pointer',
-            fontWeight: '500',
-          }}
-        >
-          <Play size={16} />
+      <div className="flex gap-3">
+        <Button size="lg">
+          <Play className="h-4 w-4 mr-2" />
           Play
-        </motion.button>
-        
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.sm,
-            padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-            background: theme.colors.surface,
-            color: theme.colors.text.primary,
-            border: `1px solid ${theme.colors.border}`,
-            borderRadius: theme.borderRadius.lg,
-            cursor: 'pointer',
-            fontWeight: '500',
-          }}
-        >
-          <Download size={16} />
+        </Button>
+
+        <Button variant="outline" size="lg">
+          <Download className="h-4 w-4 mr-2" />
           Download
-        </motion.button>
+        </Button>
       </div>
 
-      <div>
-        <h3
-          style={{
-            margin: 0,
-            marginBottom: theme.spacing.md,
-            color: theme.colors.text.primary,
-            fontSize: '1.1rem',
-            fontWeight: '600',
-          }}
-        >
-          Properties
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: theme.spacing.md,
-              background: theme.colors.surface,
-              borderRadius: theme.borderRadius.md,
-              border: `1px solid ${theme.colors.border}`,
-            }}
-          >
-            <span style={{ color: theme.colors.text.secondary }}>Type</span>
-            <span
-              style={{
-                background: sample.type === 'midi' 
-                  ? theme.colors.accent.primary 
-                  : theme.colors.accent.secondary,
-                color: theme.colors.text.primary,
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                borderRadius: theme.borderRadius.sm,
-                fontSize: '0.8rem',
-                fontWeight: '500',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              {sample.type}
-            </span>
-          </div>
+      <Card>
+        <CardContent className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Properties</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Type</span>
+              <Badge variant={sample.type === 'midi' ? 'default' : 'secondary'} className="text-xs uppercase">
+                {sample.type}
+              </Badge>
+            </div>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: theme.spacing.md,
-              background: theme.colors.surface,
-              borderRadius: theme.borderRadius.md,
-              border: `1px solid ${theme.colors.border}`,
-            }}
-          >
-            <span style={{ color: theme.colors.text.secondary }}>Format</span>
-            <span style={{ color: theme.colors.text.primary, fontWeight: '500' }}>
-              {sample.format}
-            </span>
-          </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Format</span>
+              <span className="font-medium">{sample.format}</span>
+            </div>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: theme.spacing.md,
-              background: theme.colors.surface,
-              borderRadius: theme.borderRadius.md,
-              border: `1px solid ${theme.colors.border}`,
-            }}
-          >
-            <span style={{ color: theme.colors.text.secondary }}>Duration</span>
-            <span style={{ color: theme.colors.text.primary, fontWeight: '500' }}>
-              {formatDuration(sample.duration)}
-            </span>
-          </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Duration</span>
+              <span className="font-medium">{formatDuration(sample.duration)}</span>
+            </div>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: theme.spacing.md,
-              background: theme.colors.surface,
-              borderRadius: theme.borderRadius.md,
-              border: `1px solid ${theme.colors.border}`,
-            }}
-          >
-            <span style={{ color: theme.colors.text.secondary }}>File Size</span>
-            <span style={{ color: theme.colors.text.primary, fontWeight: '500' }}>
-              {formatFileSize(sample.size)}
-            </span>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">File Size</span>
+              <span className="font-medium">{formatFileSize(sample.size)}</span>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {sample.type === 'midi' && (
         <PianoRoll sampleId={sample.id} />

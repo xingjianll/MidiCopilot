@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ViewMode, Sample } from '../types';
-import { theme } from '../theme';
 import { ViewToggle } from '../components/ViewToggle';
 import { SampleCard } from '../components/SampleCard';
 import { SampleRow } from '../components/SampleRow';
 import { SampleDetail } from '../components/SampleDetail';
+import { PageHeader } from '../components/page-header';
+import { Sheet, SheetContent } from '../components/ui/sheet';
+import { Button } from '../components/ui/button';
 import { Plus, Upload, Loader2, RefreshCw } from 'lucide-react';
 
 export const SamplesPage: React.FC = () => {
-  const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [viewMode, setViewMode] = useState<ViewMode>('column');
   const [selectedSample, setSelectedSample] = useState<Sample | null>(null);
   const [samples, setSamples] = useState<Sample[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,413 +167,196 @@ export const SamplesPage: React.FC = () => {
 
   if (viewMode === 'column') {
     return (
-      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-        {/* Column view: Split screen */}
-        <div style={{ width: '400px', display: 'flex', flexDirection: 'column' }}>
-          <div
-            style={{
-              padding: theme.spacing.lg,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: theme.colors.glass.surface,
-              backdropFilter: theme.blur.sm,
-            }}
-          >
-            <h1
-              style={{
-                margin: 0,
-                color: theme.colors.text.primary,
-                fontSize: '1.5rem',
-                fontWeight: '600',
-              }}
-            >
-              Samples
-            </h1>
-            <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+      <>
+        <PageHeader
+          title="Samples"
+          actions={
+            <div className="flex items-center gap-2">
+              <Button
                 onClick={fetchSamples}
                 disabled={loading}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: theme.spacing.sm,
-                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  background: theme.colors.surface,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.borderRadius.md,
-                  color: theme.colors.text.primary,
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.5 : 1,
-                }}
+                variant="outline"
+                size="sm"
               >
-                <RefreshCw size={16} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
-              </motion.button>
-              
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              </Button>
+              <Button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: theme.spacing.sm,
-                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  background: theme.colors.accent.primary,
-                  border: 'none',
-                  borderRadius: theme.borderRadius.md,
-                  color: theme.colors.text.primary,
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                  opacity: uploading ? 0.5 : 1,
-                }}
+                size="sm"
               >
                 {uploading ? (
                   <>
-                    <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Uploading...
                   </>
                 ) : (
                   <>
-                    <Plus size={16} />
+                    <Plus className="h-4 w-4 mr-2" />
                     Add Sample
                   </>
                 )}
-              </motion.button>
-              
+              </Button>
               <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
             </div>
-          </div>
-
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              style={{
-                background: theme.colors.glass.surface,
-                backdropFilter: theme.blur.md,
-                overflow: 'hidden',
-              }}
-            >
-              {loading ? (
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  height: '200px',
-                  color: theme.colors.text.secondary 
-                }}>
-                  <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
-                </div>
-              ) : samples.length === 0 ? (
-                <div style={{ 
-                  textAlign: 'center', 
-                  padding: theme.spacing.xl,
-                  color: theme.colors.text.secondary 
-                }}>
-                  <p>No samples yet. Upload your first MIDI file!</p>
-                </div>
-              ) : (
-                samples.map((sample) => (
-                  <SampleRow
-                    key={sample.id}
-                    sample={sample}
-                    onClick={() => handleSampleClick(sample)}
-                    isSelected={selectedSample?.id === sample.id}
-                  />
-                ))
-              )}
-            </motion.div>
-          </div>
-        </div>
-
-        {/* Detail panel takes remaining space */}
-        <div style={{ flex: 1, background: theme.colors.background, overflow: 'auto', padding: theme.spacing.xl }}>
-          {selectedSample && (
-            <div style={{ position: 'relative' }}>
-              <div style={{ 
-                position: 'absolute', 
-                top: 0, 
-                right: 0, 
-                display: 'flex', 
-                gap: theme.spacing.sm,
-                zIndex: 10
-              }}>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleDownload(selectedSample.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: theme.spacing.sm,
-                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                    background: theme.colors.accent.primary,
-                    border: 'none',
-                    borderRadius: theme.borderRadius.md,
-                    color: theme.colors.text.primary,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Download
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleDelete(selectedSample.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: theme.spacing.sm,
-                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                    background: '#ff4444',
-                    border: 'none',
-                    borderRadius: theme.borderRadius.md,
-                    color: theme.colors.text.primary,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Delete
-                </motion.button>
-              </div>
-              <SampleDetail sample={selectedSample} />
+          }
+        />
+        <div className="flex flex-1 overflow-hidden">
+          {/* Column view: Split screen */}
+          <div className="w-96 flex flex-col border-r">
+            <div className="flex-1 overflow-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="overflow-hidden"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center h-48 text-muted-foreground">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : samples.length === 0 ? (
+                  <div className="text-center p-8 text-muted-foreground">
+                    <p>No samples yet. Upload your first MIDI file!</p>
+                  </div>
+                ) : (
+                  samples.map((sample) => (
+                    <SampleRow
+                      key={sample.id}
+                      sample={sample}
+                      onClick={() => handleSampleClick(sample)}
+                      isSelected={selectedSample?.id === sample.id}
+                    />
+                  ))
+                )}
+              </motion.div>
             </div>
-          )}
+          </div>
+
+          {/* Detail panel takes remaining space */}
+          <div className="flex-1 overflow-auto p-6 bg-muted/50">
+            {selectedSample && (
+              <div className="relative">
+                <div className="absolute top-0 right-0 flex gap-2 z-10">
+                  <Button
+                    onClick={() => handleDownload(selectedSample.id)}
+                    size="sm"
+                  >
+                    Download
+                  </Button>
+                  <Button
+                    onClick={() => handleDelete(selectedSample.id)}
+                    variant="destructive"
+                    size="sm"
+                  >
+                    Delete
+                  </Button>
+                </div>
+                <SampleDetail sample={selectedSample} />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
-  // Card view: Full screen with bottom drawer (better for piano rolls)
+  // Card view: Full screen with overlay drawer
   return (
-    <div style={{ position: 'relative', height: '100vh', width: '100%', overflow: 'hidden' }}>
-      <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
-        <div
-          style={{
-            padding: theme.spacing.lg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-          }}
-        >
-          <h1
-            style={{
-              margin: 0,
-              color: theme.colors.text.primary,
-              fontSize: '1.5rem',
-              fontWeight: '600',
-            }}
-          >
-            Samples
-          </h1>
-          <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+    <>
+      <PageHeader
+        title="Samples"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
               onClick={fetchSamples}
               disabled={loading}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                background: theme.colors.surface,
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.borderRadius.md,
-                color: theme.colors.text.primary,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.5 : 1,
-              }}
+              variant="outline"
+              size="sm"
             >
-              <RefreshCw size={16} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
-            </motion.button>
-            
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            </Button>
+            <Button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                background: theme.colors.accent.primary,
-                border: 'none',
-                borderRadius: theme.borderRadius.md,
-                color: theme.colors.text.primary,
-                cursor: uploading ? 'not-allowed' : 'pointer',
-                opacity: uploading ? 0.5 : 1,
-              }}
+              size="sm"
             >
               {uploading ? (
                 <>
-                  <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Uploading...
                 </>
               ) : (
                 <>
-                  <Plus size={16} />
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Sample
                 </>
               )}
-            </motion.button>
-            
+            </Button>
             <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
           </div>
-        </div>
-
-        <div style={{ flex: 1, overflow: 'auto', padding: `${theme.spacing.lg} 0 ${theme.spacing.lg} ${theme.spacing.lg}` }}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: theme.spacing.lg,
-              width: '100%',
-              overflowX: 'auto',
-              padding: '0 0 1rem 0',
-            }}
-          >
-            {loading ? (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                width: '100%',
-                height: '200px',
-                color: theme.colors.text.secondary 
-              }}>
-                <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
-              </div>
-            ) : samples.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                width: '100%',
-                padding: theme.spacing.xl,
-                color: theme.colors.text.secondary 
-              }}>
-                <p>No samples yet. Upload your first MIDI file!</p>
-              </div>
-            ) : (
-              samples.map((sample) => (
-                <motion.div
-                  key={sample.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  style={{ minWidth: '300px', width: '300px', flexShrink: 0 }}
-                >
-                  <SampleCard
-                    sample={sample}
-                    onClick={() => handleSampleClick(sample)}
-                    isSelected={selectedSample?.id === sample.id}
-                  />
-                </motion.div>
-              ))
-            )}
-          </motion.div>
-        </div>
+        }
+      />
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-row gap-4 w-full overflow-x-auto pb-4"
+        >
+          {loading ? (
+            <div className="flex items-center justify-center w-full h-48 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : samples.length === 0 ? (
+            <div className="text-center w-full p-8 text-muted-foreground">
+              <p>No samples yet. Upload your first MIDI file!</p>
+            </div>
+          ) : (
+            samples.map((sample) => (
+              <motion.div
+                key={sample.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="min-w-[300px] w-[300px] flex-shrink-0"
+              >
+                <SampleCard
+                  sample={sample}
+                  onClick={() => handleSampleClick(sample)}
+                  isSelected={selectedSample?.id === sample.id}
+                />
+              </motion.div>
+            ))
+          )}
+        </motion.div>
       </div>
 
-      {/* Bottom drawer for card view (better for piano rolls) */}
-      <AnimatePresence>
-        {selectedSample && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeDetail}
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: theme.colors.glass.backdrop,
-                zIndex: 40,
-              }}
-            />
-            
-            {/* Bottom Drawer */}
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              style={{
-                position: 'fixed',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: '60vh',
-                background: theme.colors.glass.surface,
-                backdropFilter: theme.blur.md,
-                zIndex: 50,
-                overflow: 'auto',
-                padding: theme.spacing.xl,
-              }}
-            >
-              <div style={{ position: 'relative' }}>
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  right: 0, 
-                  display: 'flex', 
-                  gap: theme.spacing.sm,
-                  zIndex: 10
-                }}>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleDownload(selectedSample.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.sm,
-                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                      background: theme.colors.accent.primary,
-                      border: 'none',
-                      borderRadius: theme.borderRadius.md,
-                      color: theme.colors.text.primary,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Download
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleDelete(selectedSample.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: theme.spacing.sm,
-                      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                      background: '#ff4444',
-                      border: 'none',
-                      borderRadius: theme.borderRadius.md,
-                      color: theme.colors.text.primary,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Delete
-                  </motion.button>
-                </div>
-                <SampleDetail sample={selectedSample} />
+      {/* Sheet overlay for card view */}
+      <Sheet open={!!selectedSample} onOpenChange={() => setSelectedSample(null)}>
+        <SheetContent className="w-[500px] overflow-auto">
+          {selectedSample && (
+            <div className="relative">
+              <div className="absolute top-0 right-0 flex gap-2 z-10">
+                <Button
+                  onClick={() => handleDownload(selectedSample.id)}
+                  size="sm"
+                >
+                  Download
+                </Button>
+                <Button
+                  onClick={() => handleDelete(selectedSample.id)}
+                  variant="destructive"
+                  size="sm"
+                >
+                  Delete
+                </Button>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+              <SampleDetail sample={selectedSample} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Hidden file input */}
       <input
@@ -579,21 +364,8 @@ export const SamplesPage: React.FC = () => {
         type="file"
         accept=".mid,.midi"
         onChange={handleFileUpload}
-        style={{ display: 'none' }}
+        className="hidden"
       />
-
-      <style>
-        {`
-          @keyframes spin {
-            from {
-              transform: rotate(0deg);
-            }
-            to {
-              transform: rotate(360deg);
-            }
-          }
-        `}
-      </style>
-    </div>
+    </>
   );
 };

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { Run } from '../types';
-import { theme } from '../theme';
+import { Badge } from './ui/badge';
 
 interface RunRowProps {
   run: Run;
@@ -9,11 +9,18 @@ interface RunRowProps {
   isSelected?: boolean;
 }
 
-const statusColors = {
-  pending: theme.colors.text.tertiary,
-  running: theme.colors.accent.warning,
-  completed: theme.colors.accent.success,
-  failed: theme.colors.accent.error,
+const statusVariants = {
+  pending: 'secondary',
+  running: 'default',
+  completed: 'default',
+  failed: 'destructive',
+} as const;
+
+const statusBgColors = {
+  pending: 'bg-secondary',
+  running: 'bg-yellow-500',
+  completed: 'bg-green-500',
+  failed: 'bg-destructive',
 };
 
 const statusIcons = {
@@ -48,89 +55,41 @@ export const RunRow: React.FC<RunRowProps> = ({
   };
 
   return (
-    <motion.div
-      whileHover={{ backgroundColor: theme.colors.surfaceHover }}
+    <div
+      className={`flex items-center p-4 cursor-pointer border-b transition-colors hover:bg-accent/50 ${
+        isSelected ? 'bg-accent' : ''
+      }`}
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: theme.spacing.md,
-        cursor: 'pointer',
-        backgroundColor: isSelected ? theme.colors.surfaceActive : 'transparent',
-        borderBottom: `1px solid ${theme.colors.border}`,
-        transition: `all ${theme.animation.fast}`,
-      }}
     >
-      <div
-        style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: theme.borderRadius.md,
-          background: statusColor,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: theme.spacing.md,
-          flexShrink: 0,
-        }}
-      >
-        <StatusIcon size={16} color={theme.colors.text.primary} />
+      <div className={`w-8 h-8 rounded-md flex items-center justify-center mr-4 flex-shrink-0 ${statusBgColors[run.status]}`}>
+        <StatusIcon className="h-4 w-4 text-white" />
       </div>
-      
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            color: theme.colors.text.primary,
-            fontWeight: '500',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+
+      <div className="flex-1 min-w-0">
+        <div className="font-medium truncate">
           {run.workflowName}
         </div>
-        <div
-          style={{
-            color: theme.colors.text.secondary,
-            fontSize: '0.9rem',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <div className="text-sm text-muted-foreground truncate">
           {run.error || `Run ${run.id.slice(0, 8)}`}
         </div>
       </div>
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-        
+
+      <div className="flex items-center gap-3">
+        <Badge variant={statusVariants[run.status]} className="text-xs capitalize">
+          {run.status}
+        </Badge>
+
         {getDuration() && (
-          <span
-            style={{
-              color: theme.colors.text.tertiary,
-              fontSize: '0.8rem',
-              minWidth: '40px',
-              textAlign: 'right',
-            }}
-          >
+          <span className="text-xs text-muted-foreground min-w-[40px] text-right">
             {getDuration()}
           </span>
         )}
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-          <Clock size={14} color={theme.colors.text.tertiary} />
-          <span
-            style={{
-              color: theme.colors.text.tertiary,
-              fontSize: '0.8rem',
-              minWidth: '120px',
-              textAlign: 'right',
-            }}
-          >
-            {formatDate(run.createdAt)} {formatTime(run.createdAt)}
-          </span>
+
+        <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-[120px] text-right">
+          <Clock className="h-3 w-3" />
+          <span>{formatDate(run.createdAt)} {formatTime(run.createdAt)}</span>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };

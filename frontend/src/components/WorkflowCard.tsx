@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { Clock, Cpu, Workflow as WorkflowIcon } from 'lucide-react';
 import { Workflow } from '../types';
-import { theme } from '../theme';
-import { GlassCard } from './GlassCard';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
 
 interface WorkflowCardProps {
   workflow: Workflow;
@@ -20,72 +20,47 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
   };
 
   return (
-    <GlassCard onClick={onClick} isSelected={isSelected}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.md }}>
-        <div
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: theme.borderRadius.lg,
-            background: workflow.isModule 
-              ? theme.colors.accent.secondary 
-              : theme.colors.accent.primary,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          {workflow.isModule ? <Cpu size={20} /> : <WorkflowIcon size={20} />}
-        </div>
-        
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3
-            style={{
-              margin: 0,
-              marginBottom: theme.spacing.xs,
-              color: theme.colors.text.primary,
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {workflow.name}
-          </h3>
-          
-          <p
-            style={{
-              margin: 0,
-              marginBottom: theme.spacing.sm,
-              color: theme.colors.text.secondary,
-              fontSize: '0.9rem',
-              lineHeight: '1.4',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {workflow.description}
-          </p>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-              <Clock size={14} color={theme.colors.text.tertiary} />
-              <span
-                style={{
-                  color: theme.colors.text.tertiary,
-                  fontSize: '0.8rem',
-                }}
-              >
-                {formatDate(workflow.createdAt)}
-              </span>
+    <Card
+      className={`cursor-pointer transition-all hover:shadow-md ${
+        isSelected ? 'ring-2 ring-primary' : ''
+      }`}
+      onClick={onClick}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+            workflow.isModule ? 'bg-secondary' : 'bg-primary'
+          }`}>
+            {workflow.isModule ? (
+              <Cpu className="h-5 w-5 text-secondary-foreground" />
+            ) : (
+              <WorkflowIcon className="h-5 w-5 text-primary-foreground" />
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold truncate mb-1">
+              {workflow.name}
+            </h3>
+
+            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+              {workflow.description}
+            </p>
+
+            <div className="flex items-center gap-3">
+              {workflow.isModule && (
+                <Badge variant="secondary" className="text-xs">
+                  Module
+                </Badge>
+              )}
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                <span>{formatDate(workflow.createdAt)}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </GlassCard>
+      </CardContent>
+    </Card>
   );
 };

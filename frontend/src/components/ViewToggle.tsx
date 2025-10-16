@@ -1,7 +1,6 @@
-import { motion } from 'framer-motion';
 import { Grid, List } from 'lucide-react';
 import { ViewMode } from '../types';
-import { theme } from '../theme';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 
 interface ViewToggleProps {
   viewMode: ViewMode;
@@ -10,54 +9,28 @@ interface ViewToggleProps {
 
 export const ViewToggle: React.FC<ViewToggleProps> = ({ viewMode, onViewModeChange }) => {
   return (
-    <div
-      style={{
-        display: 'flex',
-        background: theme.colors.glass.surface,
-        backdropFilter: theme.blur.sm,
-        borderRadius: theme.borderRadius.lg,
-        padding: '2px',
-        border: `1px solid ${theme.colors.glass.border}`,
+    <ToggleGroup
+      type="single"
+      value={viewMode}
+      onValueChange={(value) => {
+        if (value) onViewModeChange(value as ViewMode);
       }}
+      className="bg-muted p-1"
     >
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => onViewModeChange('card')}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.sm,
-          borderRadius: theme.borderRadius.md,
-          background: viewMode === 'card' ? theme.colors.accent.primary : 'transparent',
-          color: viewMode === 'card' ? theme.colors.text.primary : theme.colors.text.secondary,
-          border: 'none',
-          cursor: 'pointer',
-          transition: `all ${theme.animation.fast}`,
-        }}
+      <ToggleGroupItem
+        value="card"
+        aria-label="Card view"
+        size="sm"
       >
-        <Grid size={16} />
-      </motion.button>
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => onViewModeChange('column')}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: theme.spacing.sm,
-          borderRadius: theme.borderRadius.md,
-          background: viewMode === 'column' ? theme.colors.accent.primary : 'transparent',
-          color: viewMode === 'column' ? theme.colors.text.primary : theme.colors.text.secondary,
-          border: 'none',
-          cursor: 'pointer',
-          transition: `all ${theme.animation.fast}`,
-        }}
+        <Grid className="h-4 w-4" />
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="column"
+        aria-label="List view"
+        size="sm"
       >
-        <List size={16} />
-      </motion.button>
-    </div>
+        <List className="h-4 w-4" />
+      </ToggleGroupItem>
+    </ToggleGroup>
   );
 };

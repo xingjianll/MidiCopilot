@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sidebar } from './components/Sidebar';
+import { AppSidebar } from './components/app-sidebar';
 import { HomePage } from './pages/HomePage';
 import { RunsPage } from './pages/RunsPage';
 import { SamplesPage } from './pages/SamplesPage';
 import { WorkflowEditor } from './components/WorkflowEditor';
-import { GraphPage } from './pages/GraphPage';
-import { theme } from './theme';
+import { SidebarProvider, SidebarInset } from './components/ui/sidebar';
 import './App.css';
 
 type AppView = 'home' | 'runs' | 'samples' | 'editor';
@@ -42,41 +41,49 @@ function App() {
         return <SamplesPage />;
       case 'editor':
         return (
-          <WorkflowEditor 
-            workflowId={editingWorkflowId || undefined} 
+          <WorkflowEditor
+            workflowId={editingWorkflowId || undefined}
             onBack={handleBackFromEditor}
           />
         );
       default:
-        return <HomePage />;
+        return <HomePage onEditWorkflow={handleEditWorkflow} />;
     }
   };
 
+  // For editor view, use full screen without sidebar
+  if (activeTab === 'editor') {
+    return (
+      <div className="h-screen w-full">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="h-full w-full"
+        >
+          {renderContent()}
+        </motion.div>
+      </div>
+    );
+  }
+
+  // For other views, use shadcn SidebarInset layout
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100vh',
-        background: theme.colors.background,
-        color: theme.colors.text.primary,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        overflow: 'hidden',
-      }}
-    >
-      {activeTab !== 'editor' && (
-        <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
-      )}
-      
-      <motion.div
-        key={activeTab}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2 }}
-        style={{ flex: 1, width: '100%', overflow: 'hidden' }}
-      >
-        {renderContent()}
-      </motion.div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar activeTab={activeTab} onTabChange={handleTabChange} />
+      <SidebarInset>
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="flex flex-1 flex-col"
+        >
+          {renderContent()}
+        </motion.div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 

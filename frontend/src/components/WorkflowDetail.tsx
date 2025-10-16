@@ -3,7 +3,11 @@ import { motion } from 'framer-motion';
 import { Play, Edit, Clock, Cpu, Workflow as WorkflowIcon, X, Loader2, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Workflow } from '../types';
-import { theme } from '../theme';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Card, CardContent } from './ui/card';
+import { Progress } from './ui/progress';
+import { Alert, AlertDescription } from './ui/alert';
 import { MidiFileUpload } from './MidiFileUpload';
 
 interface WorkflowDetailProps {
@@ -171,102 +175,67 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
+    <div className="flex flex-col gap-6">
       {onClose && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: theme.colors.text.secondary,
-              cursor: 'pointer',
-              padding: theme.spacing.xs,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
           >
-            <X size={20} />
-          </motion.button>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       )}
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-        <div
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: theme.borderRadius.lg,
-            background: workflow.isModule 
-              ? theme.colors.accent.secondary 
-              : theme.colors.accent.primary,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {workflow.isModule ? <Cpu size={24} /> : <WorkflowIcon size={24} />}
+
+      <div className="flex items-center gap-4">
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+          workflow.isModule ? 'bg-secondary' : 'bg-primary'
+        }`}>
+          {workflow.isModule ? (
+            <Cpu className="h-6 w-6 text-secondary-foreground" />
+          ) : (
+            <WorkflowIcon className="h-6 w-6 text-primary-foreground" />
+          )}
         </div>
-        
+
         <div>
-          <h1
-            style={{
-              margin: 0,
-              color: theme.colors.text.primary,
-              fontSize: '1.5rem',
-              fontWeight: '600',
-            }}
-          >
+          <h1 className="text-2xl font-semibold mb-1">
             {workflow.name}
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
-            <Clock size={14} color={theme.colors.text.tertiary} />
-            <span style={{ color: theme.colors.text.tertiary, fontSize: '0.9rem' }}>
-              Created {formatDate(workflow.createdAt)}
-            </span>
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span>Created {formatDate(workflow.createdAt)}</span>
           </div>
         </div>
       </div>
 
-      <div
-        style={{
-          color: theme.colors.text.secondary,
-          lineHeight: '1.6',
-        }}
-      >
+      <div className="prose prose-sm max-w-none text-muted-foreground">
         <ReactMarkdown
           components={{
             h1: ({ children }) => (
-              <h1 style={{ color: theme.colors.text.primary, fontSize: '1.5rem', marginBottom: theme.spacing.md }}>{children}</h1>
+              <h1 className="text-xl font-semibold text-foreground mb-3">{children}</h1>
             ),
             h2: ({ children }) => (
-              <h2 style={{ color: theme.colors.text.primary, fontSize: '1.25rem', marginBottom: theme.spacing.sm, marginTop: theme.spacing.lg }}>{children}</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-2 mt-6">{children}</h2>
             ),
             h3: ({ children }) => (
-              <h3 style={{ color: theme.colors.text.primary, fontSize: '1.1rem', marginBottom: theme.spacing.sm, marginTop: theme.spacing.md }}>{children}</h3>
+              <h3 className="text-base font-semibold text-foreground mb-2 mt-4">{children}</h3>
             ),
             p: ({ children }) => (
-              <p style={{ color: theme.colors.text.secondary, marginBottom: theme.spacing.sm, lineHeight: '1.6' }}>{children}</p>
+              <p className="text-muted-foreground mb-2 leading-relaxed">{children}</p>
             ),
             ul: ({ children }) => (
-              <ul style={{ color: theme.colors.text.secondary, paddingLeft: theme.spacing.lg, marginBottom: theme.spacing.sm }}>{children}</ul>
+              <ul className="text-muted-foreground pl-6 mb-2 list-disc">{children}</ul>
             ),
             li: ({ children }) => (
-              <li style={{ marginBottom: theme.spacing.xs }}>{children}</li>
+              <li className="mb-1">{children}</li>
             ),
             strong: ({ children }) => (
-              <strong style={{ color: theme.colors.text.primary, fontWeight: '600' }}>{children}</strong>
+              <strong className="text-foreground font-semibold">{children}</strong>
             ),
             code: ({ children }) => (
-              <code style={{ 
-                background: theme.colors.surface, 
-                padding: '2px 4px', 
-                fontSize: '0.9em', 
-                color: theme.colors.accent.primary 
-              }}>{children}</code>
+              <code className="bg-muted px-1 py-0.5 text-sm text-primary rounded">{children}</code>
             ),
           }}
         >
@@ -275,137 +244,61 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
       </div>
 
       <div>
-        <h3
-          style={{
-            margin: 0,
-            marginBottom: theme.spacing.md,
-            color: theme.colors.text.primary,
-            fontSize: '1.1rem',
-            fontWeight: '600',
-          }}
-        >
-          Inputs
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+        <h3 className="text-lg font-semibold mb-4">Inputs</h3>
+        <div className="flex flex-col gap-3">
           {workflow.inputs.map((input) => (
-            <div
-              key={input.id}
-              style={{
-                padding: theme.spacing.md,
-                background: theme.colors.surface,
-                borderRadius: theme.borderRadius.md,
-                border: `1px solid ${theme.colors.border}`,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
-                <span style={{ color: theme.colors.text.primary, fontWeight: '500' }}>
-                  {input.name}
-                </span>
-                <span
-                  style={{
-                    background: theme.colors.accent.primary,
-                    color: theme.colors.text.primary,
-                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                    borderRadius: theme.borderRadius.sm,
-                    fontSize: '0.7rem',
-                    fontWeight: '500',
-                  }}
-                >
-                  {input.type}
-                </span>
-                {input.required && (
-                  <span
-                    style={{
-                      background: theme.colors.accent.warning,
-                      color: theme.colors.text.primary,
-                      padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                      borderRadius: theme.borderRadius.sm,
-                      fontSize: '0.7rem',
-                      fontWeight: '500',
-                    }}
-                  >
-                    Required
-                  </span>
+            <Card key={input.id}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-medium">{input.name}</span>
+                  <Badge variant="default" className="text-xs">
+                    {input.type}
+                  </Badge>
+                  {input.required && (
+                    <Badge variant="secondary" className="text-xs">
+                      Required
+                    </Badge>
+                  )}
+                </div>
+                {input.description && (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {input.description}
+                  </p>
                 )}
-              </div>
-              {input.description && (
-                <p
-                  style={{
-                    margin: 0,
-                    marginBottom: theme.spacing.md,
-                    color: theme.colors.text.secondary,
-                    fontSize: '0.9rem',
-                  }}
-                >
-                  {input.description}
-                </p>
-              )}
 
-              {/* Show file upload for MidiTrack type */}
-              {input.type === 'MidiTrack' && (
-                <MidiFileUpload
-                  onFileSelect={setSelectedFile}
-                  selectedFile={selectedFile}
-                  onClearFile={() => setSelectedFile(null)}
-                />
-              )}
-            </div>
+                {/* Show file upload for MidiTrack type */}
+                {input.type === 'MidiTrack' && (
+                  <MidiFileUpload
+                    onFileSelect={setSelectedFile}
+                    selectedFile={selectedFile}
+                    onClearFile={() => setSelectedFile(null)}
+                  />
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
 
       <div>
-        <h3
-          style={{
-            margin: 0,
-            marginBottom: theme.spacing.md,
-            color: theme.colors.text.primary,
-            fontSize: '1.1rem',
-            fontWeight: '600',
-          }}
-        >
-          Outputs
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+        <h3 className="text-lg font-semibold mb-4">Outputs</h3>
+        <div className="flex flex-col gap-3">
           {workflow.outputs.map((output) => (
-            <div
-              key={output.id}
-              style={{
-                padding: theme.spacing.md,
-                background: theme.colors.surface,
-                borderRadius: theme.borderRadius.md,
-                border: `1px solid ${theme.colors.border}`,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
-                <span style={{ color: theme.colors.text.primary, fontWeight: '500' }}>
-                  {output.name}
-                </span>
-                <span
-                  style={{
-                    background: theme.colors.accent.success,
-                    color: theme.colors.text.primary,
-                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                    borderRadius: theme.borderRadius.sm,
-                    fontSize: '0.7rem',
-                    fontWeight: '500',
-                  }}
-                >
-                  {output.type}
-                </span>
-              </div>
-              {output.description && (
-                <p
-                  style={{
-                    margin: 0,
-                    color: theme.colors.text.secondary,
-                    fontSize: '0.9rem',
-                  }}
-                >
-                  {output.description}
-                </p>
-              )}
-            </div>
+            <Card key={output.id}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-medium">{output.name}</span>
+                  <Badge variant="default" className="text-xs bg-green-500">
+                    {output.type}
+                  </Badge>
+                </div>
+                {output.description && (
+                  <p className="text-sm text-muted-foreground">
+                    {output.description}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
@@ -415,85 +308,37 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{
-            padding: theme.spacing.md,
-            background: theme.colors.surface,
-            border: `1px solid ${theme.colors.border}`,
-            borderRadius: theme.borderRadius.lg,
-          }}
         >
-          <div
-            style={{
-              color: theme.colors.text.primary,
-              fontWeight: '600',
-              marginBottom: theme.spacing.sm,
-            }}
-          >
-            Generating...
-          </div>
-
-          {statusMessage && (
-            <div
-              style={{
-                color: theme.colors.text.secondary,
-                fontSize: '0.9rem',
-                marginBottom: theme.spacing.md,
-              }}
-            >
-              {statusMessage}
-            </div>
-          )}
-
-          {progress && (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: theme.spacing.xs,
-                  fontSize: '0.85rem',
-                  color: theme.colors.text.secondary,
-                  fontFamily: 'monospace',
-                }}
-              >
-                <span>
-                  {progress.generated} / {progress.total - progress.promptLength} tokens generated
-                </span>
-                <span>{progress.percentage}%</span>
+          <Card>
+            <CardContent className="p-4">
+              <div className="font-semibold mb-2">
+                Generating...
               </div>
 
-              <div
-                style={{
-                  width: '100%',
-                  height: '8px',
-                  background: theme.colors.background,
-                  borderRadius: theme.borderRadius.sm,
-                  overflow: 'hidden',
-                }}
-              >
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress.percentage}%` }}
-                  transition={{ duration: 0.3 }}
-                  style={{
-                    height: '100%',
-                    background: `linear-gradient(90deg, ${theme.colors.accent.primary}, ${theme.colors.accent.secondary})`,
-                  }}
-                />
-              </div>
+              {statusMessage && (
+                <div className="text-sm text-muted-foreground mb-4">
+                  {statusMessage}
+                </div>
+              )}
 
-              <div
-                style={{
-                  marginTop: theme.spacing.sm,
-                  fontSize: '0.75rem',
-                  color: theme.colors.text.tertiary,
-                  fontFamily: 'monospace',
-                }}
-              >
-                Prompt: {progress.promptLength} tokens | Current: {progress.current} / {progress.total}
-              </div>
-            </>
-          )}
+              {progress && (
+                <>
+                  <div className="flex justify-between mb-2 text-sm text-muted-foreground font-mono">
+                    <span>
+                      {progress.generated} / {progress.total - progress.promptLength} tokens generated
+                    </span>
+                    <span>{progress.percentage}%</span>
+                  </div>
+
+                  <Progress value={progress.percentage} className="mb-2" />
+
+                  <div className="text-xs text-muted-foreground font-mono">
+                    Prompt: {progress.promptLength} tokens | Current: {progress.current} / {progress.total}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </motion.div>
       )}
 
@@ -502,16 +347,12 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{
-            padding: theme.spacing.md,
-            background: '#ff444420',
-            border: '1px solid #ff4444',
-            borderRadius: theme.borderRadius.lg,
-            color: '#ff4444',
-            fontSize: '0.9rem',
-          }}
         >
-          Error: {error}
+          <Alert variant="destructive">
+            <AlertDescription>
+              Error: {error}
+            </AlertDescription>
+          </Alert>
         </motion.div>
       )}
 
@@ -520,126 +361,52 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{
-            padding: theme.spacing.md,
-            background: `${theme.colors.accent.primary}20`,
-            border: `1px solid ${theme.colors.accent.primary}`,
-            borderRadius: theme.borderRadius.lg,
-          }}
         >
-          <div
-            style={{
-              color: theme.colors.text.primary,
-              fontWeight: '600',
-              marginBottom: theme.spacing.sm,
-            }}
-          >
-            Success!
-          </div>
-          <div
-            style={{
-              color: theme.colors.text.secondary,
-              fontSize: '0.9rem',
-              marginBottom: theme.spacing.md,
-            }}
-          >
-            {result.message}
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleDownload}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.sm,
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              background: theme.colors.accent.primary,
-              border: 'none',
-              borderRadius: theme.borderRadius.md,
-              color: theme.colors.text.primary,
-              fontWeight: '500',
-              cursor: 'pointer',
-            }}
-          >
-            <Download size={16} />
-            Download Continuation
-          </motion.button>
+          <Alert>
+            <AlertDescription>
+              <div className="font-semibold mb-2">Success!</div>
+              <div className="text-sm mb-4">{result.message}</div>
+              <Button onClick={handleDownload} size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Download Continuation
+              </Button>
+            </AlertDescription>
+          </Alert>
         </motion.div>
       )}
 
       {/* Run Button */}
-      <div style={{ display: 'flex', gap: theme.spacing.md }}>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+      <div className="flex gap-4">
+        <Button
           onClick={handleRun}
           disabled={!selectedFile || isRunning}
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: theme.spacing.sm,
-            padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-            background: selectedFile && !isRunning ? theme.colors.accent.primary : theme.colors.surface,
-            color: theme.colors.text.primary,
-            border: `1px solid ${theme.colors.border}`,
-            borderRadius: theme.borderRadius.lg,
-            cursor: selectedFile && !isRunning ? 'pointer' : 'not-allowed',
-            fontWeight: '500',
-            opacity: selectedFile && !isRunning ? 1 : 0.5,
-          }}
+          className="flex-1"
+          size="lg"
         >
           {isRunning ? (
             <>
-              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Running...
             </>
           ) : (
             <>
-              <Play size={16} />
+              <Play className="h-4 w-4 mr-2" />
               Run
             </>
           )}
-        </motion.button>
+        </Button>
 
         {!workflow.isModule && (
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <Button
             onClick={() => onEdit?.(workflow.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.sm,
-              padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-              background: theme.colors.surface,
-              color: theme.colors.text.primary,
-              border: `1px solid ${theme.colors.border}`,
-              borderRadius: theme.borderRadius.lg,
-              cursor: 'pointer',
-              fontWeight: '500',
-            }}
+            variant="outline"
+            size="lg"
           >
-            <Edit size={16} />
+            <Edit className="h-4 w-4 mr-2" />
             Edit
-          </motion.button>
+          </Button>
         )}
       </div>
-
-      <style>
-        {`
-          @keyframes spin {
-            from {
-              transform: rotate(0deg);
-            }
-            to {
-              transform: rotate(360deg);
-            }
-          }
-        `}
-      </style>
     </div>
   );
 };

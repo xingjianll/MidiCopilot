@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { Clock, CheckCircle, XCircle, Loader, Play } from 'lucide-react';
 import { Run } from '../types';
-import { theme } from '../theme';
-import { GlassCard } from './GlassCard';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
 
 interface RunCardProps {
   run: Run;
@@ -10,11 +10,18 @@ interface RunCardProps {
   isSelected?: boolean;
 }
 
-const statusColors = {
-  pending: theme.colors.text.tertiary,
-  running: theme.colors.accent.warning,
-  completed: theme.colors.accent.success,
-  failed: theme.colors.accent.error,
+const statusVariants = {
+  pending: 'secondary',
+  running: 'default',
+  completed: 'default',
+  failed: 'destructive',
+} as const;
+
+const statusBgColors = {
+  pending: 'bg-secondary',
+  running: 'bg-yellow-500',
+  completed: 'bg-green-500',
+  failed: 'bg-destructive',
 };
 
 const statusIcons = {
@@ -49,103 +56,48 @@ export const RunCard: React.FC<RunCardProps> = ({
   };
 
   return (
-    <GlassCard onClick={onClick} isSelected={isSelected}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.md }}>
-        <div
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: theme.borderRadius.lg,
-            background: statusColor,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <StatusIcon size={20} color={theme.colors.text.primary} />
-        </div>
-        
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3
-            style={{
-              margin: 0,
-              marginBottom: theme.spacing.xs,
-              color: theme.colors.text.primary,
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {run.workflowName}
-          </h3>
-          
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.sm,
-              marginBottom: theme.spacing.sm,
-            }}
-          >
-            <span
-              style={{
-                background: statusColor,
-                color: theme.colors.text.primary,
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                borderRadius: '1rem',
-                fontSize: '0.7rem',
-                fontWeight: '500',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              {run.status}
-            </span>
-            
-            {getDuration() && (
-              <span
-                style={{
-                  color: theme.colors.text.tertiary,
-                  fontSize: '0.8rem',
-                }}
-              >
-                {getDuration()}
-              </span>
-            )}
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-              <Clock size={14} color={theme.colors.text.tertiary} />
-              <span
-                style={{
-                  color: theme.colors.text.tertiary,
-                  fontSize: '0.8rem',
-                }}
-              >
-                {formatDate(run.createdAt)} {formatTime(run.createdAt)}
-              </span>
-            </div>
+    <Card
+      className={`cursor-pointer transition-all hover:shadow-md ${
+        isSelected ? 'ring-2 ring-primary' : ''
+      }`}
+      onClick={onClick}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${statusBgColors[run.status]}`}>
+            <StatusIcon className="h-5 w-5 text-white" />
           </div>
 
-          {run.error && (
-            <p
-              style={{
-                margin: 0,
-                marginTop: theme.spacing.sm,
-                color: theme.colors.accent.error,
-                fontSize: '0.9rem',
-                fontStyle: 'italic',
-              }}
-            >
-              {run.error}
-            </p>
-          )}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold truncate mb-1">
+              {run.workflowName}
+            </h3>
+
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant={statusVariants[run.status]} className="text-xs capitalize">
+                {run.status}
+              </Badge>
+
+              {getDuration() && (
+                <span className="text-xs text-muted-foreground">
+                  {getDuration()}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>{formatDate(run.createdAt)} {formatTime(run.createdAt)}</span>
+            </div>
+
+            {run.error && (
+              <p className="text-sm text-destructive italic mt-2">
+                {run.error}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-    </GlassCard>
+      </CardContent>
+    </Card>
   );
 };

@@ -2,17 +2,27 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Loader, Clock, Eye, Code } from 'lucide-react';
 import { Run } from '../types';
-import { theme } from '../theme';
+import { Badge } from './ui/badge';
+import { Card, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 interface RunDetailProps {
   run: Run;
 }
 
-const statusColors = {
-  pending: theme.colors.text.tertiary,
-  running: theme.colors.accent.warning,
-  completed: theme.colors.accent.success,
-  failed: theme.colors.accent.error,
+const statusVariants = {
+  pending: 'secondary',
+  running: 'default',
+  completed: 'default',
+  failed: 'destructive',
+} as const;
+
+const statusBgColors = {
+  pending: 'bg-secondary',
+  running: 'bg-yellow-500',
+  completed: 'bg-green-500',
+  failed: 'bg-destructive',
 };
 
 const statusIcons = {
@@ -23,9 +33,7 @@ const statusIcons = {
 };
 
 export const RunDetail: React.FC<RunDetailProps> = ({ run }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'graph'>('overview');
   const StatusIcon = statusIcons[run.status];
-  const statusColor = statusColors[run.status];
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -45,253 +53,107 @@ export const RunDetail: React.FC<RunDetailProps> = ({ run }) => {
     return `${duration} seconds`;
   };
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: Eye },
-    { id: 'graph', label: 'Graph', icon: Code },
-  ];
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-        <div
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: theme.borderRadius.lg,
-            background: statusColor,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <StatusIcon size={24} color={theme.colors.text.primary} />
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-4">
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${statusBgColors[run.status]}`}>
+          <StatusIcon className="h-6 w-6 text-white" />
         </div>
-        
+
         <div>
-          <h1
-            style={{
-              margin: 0,
-              color: theme.colors.text.primary,
-              fontSize: '1.5rem',
-              fontWeight: '600',
-            }}
-          >
+          <h1 className="text-2xl font-semibold mb-1">
             {run.workflowName}
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
-            <span
-              style={{
-                background: statusColor,
-                color: theme.colors.text.primary,
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                borderRadius: theme.borderRadius.sm,
-                fontSize: '0.7rem',
-                fontWeight: '500',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
+          <div className="flex items-center gap-2">
+            <Badge variant={statusVariants[run.status]} className="text-xs capitalize">
               {run.status}
-            </span>
-            <span style={{ color: theme.colors.text.tertiary, fontSize: '0.9rem' }}>
+            </Badge>
+            <span className="text-sm text-muted-foreground">
               Run {run.id.slice(0, 8)}
             </span>
           </div>
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          borderBottom: `1px solid ${theme.colors.border}`,
-        }}
-      >
-        {tabs.map((tab) => {
-          const TabIcon = tab.icon;
-          const isActive = activeTab === tab.id;
-          
-          return (
-            <motion.button
-              key={tab.id}
-              whileHover={{ backgroundColor: theme.colors.surfaceHover }}
-              onClick={() => setActiveTab(tab.id as 'overview' | 'graph')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-                background: 'none',
-                border: 'none',
-                borderBottom: isActive ? `2px solid ${theme.colors.accent.primary}` : '2px solid transparent',
-                color: isActive ? theme.colors.text.primary : theme.colors.text.secondary,
-                cursor: 'pointer',
-                fontWeight: isActive ? '500' : 'normal',
-                transition: `all ${theme.animation.fast}`,
-              }}
-            >
-              <TabIcon size={16} />
-              {tab.label}
-            </motion.button>
-          );
-        })}
-      </div>
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="graph" className="flex items-center gap-2">
+            <Code className="h-4 w-4" />
+            Graph
+          </TabsTrigger>
+        </TabsList>
 
-      {activeTab === 'overview' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
-          <div>
-            <h3
-              style={{
-                margin: 0,
-                marginBottom: theme.spacing.sm,
-                color: theme.colors.text.primary,
-                fontSize: '1.1rem',
-                fontWeight: '600',
-              }}
-            >
-              Timeline
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: theme.colors.text.secondary }}>Started</span>
-                <span style={{ color: theme.colors.text.primary }}>{formatDate(run.createdAt)}</span>
+        <TabsContent value="overview" className="space-y-6">
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="text-lg font-semibold mb-3">Timeline</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Started</span>
+                  <span>{formatDate(run.createdAt)}</span>
+                </div>
+                {run.completedAt && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Completed</span>
+                    <span>{formatDate(run.completedAt)}</span>
+                  </div>
+                )}
+                {getDuration() && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Duration</span>
+                    <span>{getDuration()}</span>
+                  </div>
+                )}
               </div>
-              {run.completedAt && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: theme.colors.text.secondary }}>Completed</span>
-                  <span style={{ color: theme.colors.text.primary }}>{formatDate(run.completedAt)}</span>
-                </div>
-              )}
-              {getDuration() && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: theme.colors.text.secondary }}>Duration</span>
-                  <span style={{ color: theme.colors.text.primary }}>{getDuration()}</span>
-                </div>
-              )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {run.error && (
-            <div>
-              <h3
-                style={{
-                  margin: 0,
-                  marginBottom: theme.spacing.sm,
-                  color: theme.colors.accent.error,
-                  fontSize: '1.1rem',
-                  fontWeight: '600',
-                }}
-              >
-                Error
-              </h3>
-              <div
-                style={{
-                  padding: theme.spacing.md,
-                  background: theme.colors.surface,
-                  borderLeft: `4px solid ${theme.colors.accent.error}`,
-                  borderRadius: theme.borderRadius.md,
-                }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    color: theme.colors.text.primary,
-                    fontFamily: 'monospace',
-                  }}
-                >
-                  {run.error}
-                </p>
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-lg font-semibold mb-3 text-destructive">Error</h3>
+                <div className="p-3 bg-muted border-l-4 border-destructive rounded">
+                  <p className="font-mono text-sm">{run.error}</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          <div>
-            <h3
-              style={{
-                margin: 0,
-                marginBottom: theme.spacing.sm,
-                color: theme.colors.text.primary,
-                fontSize: '1.1rem',
-                fontWeight: '600',
-              }}
-            >
-              Inputs
-            </h3>
-            <div
-              style={{
-                padding: theme.spacing.md,
-                background: theme.colors.surface,
-                borderRadius: theme.borderRadius.md,
-                border: `1px solid ${theme.colors.border}`,
-              }}
-            >
-              <pre
-                style={{
-                  margin: 0,
-                  color: theme.colors.text.primary,
-                  fontFamily: 'monospace',
-                  fontSize: '0.9rem',
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="text-lg font-semibold mb-3">Inputs</h3>
+              <pre className="bg-muted p-3 rounded text-sm font-mono whitespace-pre-wrap overflow-auto">
                 {JSON.stringify(run.inputs, null, 2)}
               </pre>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {run.outputs && (
-            <div>
-              <h3
-                style={{
-                  margin: 0,
-                  marginBottom: theme.spacing.sm,
-                  color: theme.colors.text.primary,
-                  fontSize: '1.1rem',
-                  fontWeight: '600',
-                }}
-              >
-                Outputs
-              </h3>
-              <div
-                style={{
-                  padding: theme.spacing.md,
-                  background: theme.colors.surface,
-                  borderRadius: theme.borderRadius.md,
-                  border: `1px solid ${theme.colors.border}`,
-                }}
-              >
-                <pre
-                  style={{
-                    margin: 0,
-                    color: theme.colors.text.primary,
-                    fontFamily: 'monospace',
-                    fontSize: '0.9rem',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-lg font-semibold mb-3">Outputs</h3>
+                <pre className="bg-muted p-3 rounded text-sm font-mono whitespace-pre-wrap overflow-auto">
                   {JSON.stringify(run.outputs, null, 2)}
                 </pre>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
-        </div>
-      ) : (
-        <div
-          style={{
-            padding: theme.spacing.xl,
-            background: theme.colors.surface,
-            borderRadius: theme.borderRadius.lg,
-            border: `1px solid ${theme.colors.border}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '300px',
-          }}
-        >
-          <p style={{ color: theme.colors.text.secondary, fontSize: '1.1rem' }}>
-            Graph visualization will be implemented here
-          </p>
-        </div>
-      )}
+        </TabsContent>
+
+        <TabsContent value="graph">
+          <Card>
+            <CardContent className="p-8 flex items-center justify-center min-h-[300px]">
+              <p className="text-muted-foreground text-lg">
+                Graph visualization will be implemented here
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
