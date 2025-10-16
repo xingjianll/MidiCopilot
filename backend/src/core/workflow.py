@@ -22,6 +22,7 @@ class Edge(BaseModel):
 
 class WorkflowVo(BaseModel):
     name: str
+    description: str
     edges: list[Edge]
     nodes: list[Node]
 

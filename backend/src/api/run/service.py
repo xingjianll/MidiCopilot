@@ -66,7 +66,12 @@ def create_run(run_request: RunCreateRequest) -> Response:
         # For module execution, we need to create a temporary workflow or handle differently
         # For now, let's create a simple workflow record
         from src.core.workflow import WorkflowVo
-        temp_workflow = WorkflowVo(name=f"Module_{run_request.module_name}", edges=[], nodes=[])
+        temp_workflow = WorkflowVo(
+            name=f"Module_{run_request.module_name}",
+            description=f"Temporary workflow for module {run_request.module_name} execution",
+            edges=[],
+            nodes=[]
+        )
         workflow_response = workflow_service.create_workflow(temp_workflow)
         db_run = repository.create_run(workflow_response.id)
 

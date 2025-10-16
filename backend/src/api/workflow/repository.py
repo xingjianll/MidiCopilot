@@ -9,7 +9,7 @@ from src.api.workflow.table.workflow import Workflow
 def create_workflow(db: Session, workflow: WorkflowVo) -> Workflow:
     workflow_json = workflow.model_dump_json()
 
-    db_workflow = Workflow(name=workflow.name, json=workflow_json)
+    db_workflow = Workflow(name=workflow.name, description=workflow.description, json=workflow_json)
     db.add(db_workflow)
     db.commit()
     db.refresh(db_workflow)
@@ -35,6 +35,7 @@ def update_workflow(db: Session, workflow_id: int, workflow: WorkflowVo) -> Work
 
     workflow_json = workflow.model_dump_json()
     db_workflow.name = workflow.name
+    db_workflow.description = workflow.description
     db_workflow.json = workflow_json
     db.commit()
     db.refresh(db_workflow)
