@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import TypedDict, Type, get_type_hints, Any
 from pydantic import BaseModel
 
-from core.runnable import Runnable
+from src.core.runnable import Runnable
 
 
 class ModuleVo(BaseModel):
@@ -18,9 +18,8 @@ class Module[**P, O: TypedDict](Runnable[P, O]):
         return True
 
     @classmethod
-    @abstractmethod
     def name(cls) -> str:
-        raise NotImplementedError()
+        return str(cls.__name__)
 
     @classmethod
     @abstractmethod
@@ -59,12 +58,7 @@ class Thing(TypedDict):
     rt2: float
 
 
-
 class Workflow(Module):
-    @classmethod
-    def name(cls) -> str:
-        return "Workflow"
-
     @classmethod
     def description(cls) -> str:
         return "Workflow"
