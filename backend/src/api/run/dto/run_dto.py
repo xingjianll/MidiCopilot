@@ -14,7 +14,7 @@ class RunCreateRequest(BaseModel):
 
 class Response(BaseModel):
     id: int
-    workflow_id: int
+    workflow_id: int | None
     created_at: datetime
     duration: float | None
     sample_id: int | None = None

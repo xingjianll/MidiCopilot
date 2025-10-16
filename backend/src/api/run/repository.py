@@ -6,7 +6,7 @@ from src.api.run.table.run import Run
 
 
 @with_session
-def create_run(db: Session, workflow_id: int) -> Run:
+def create_run(db: Session, workflow_id: int | None = None) -> Run:
     db_run = Run(workflow_id=workflow_id, created_at=datetime.utcnow())
     db.add(db_run)
     db.commit()

@@ -1,5 +1,10 @@
+import os
+from pathlib import Path
+from fastapi import UploadFile
+
 from src.api.sample import repository
 from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteResponse
+from src.api.sample.table.sample import SampleType
 
 
 def create_sample(sample_request: SampleCreateRequest) -> Response:
@@ -55,3 +60,34 @@ def delete_sample(sample_id: int) -> DeleteResponse | None:
         return None
 
     return DeleteResponse(message="Sample deleted successfully")
+
+
+def upload_sample(file: UploadFile) -> Response:
+    # Create MidiCopilot directory in Documents
+    documents_path = Path.home() / "Documents" / "MidiCopilot"
+    documents_path.mkdir(parents=True, exist_ok=True)
+
+    # Save the uploaded file
+    file_path = documents_path / file.filename
+
+    # Write file content
+    with open(file_path, "wb") as f:
+        content = file.file.read()
+        f.write(content)
+
+    # Determine sample type based on file extension
+    file_extension = Path(file.filename).suffix.lower()
+    if file_extension in ['.mid', '.midi']:
+        sample_type = SampleType.MIDI
+    elif file_extension in ['.wav', '.mp3', '.flac', '.ogg']:
+        sample_type = SampleType.AUDIO
+    else:
+        sample_type = SampleType.MIDI  # Default to MIDI
+
+    # Create sample record
+    sample_request = SampleCreateRequest(
+        type=sample_type,
+        path=str(file_path)
+    )
+
+    return create_sample(sample_request)

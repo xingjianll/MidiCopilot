@@ -7,13 +7,28 @@ import torch
 from ariautils.midi import MidiDict
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from symusic import Score
-from symusic.core import TrackTick
+from symusic.core import TrackTick, TempoTick
+from pydantic import BaseModel, Field
 
 from src.core.module import Module
 
-# Create type alias for cleaner API
-MidiTrack = TrackTick
-MidiTrack.__name__ = "MidiTrack"
+
+class MidiTrack(BaseModel):
+    """
+    MIDI track with timing information.
+
+    Attributes:
+        track: The actual MIDI track containing notes and events
+        tempos: List of tempo changes throughout the track (optional)
+        ticks_per_quarter: MIDI timing resolution (optional)
+    """
+    track: TrackTick
+    tempos: list[TempoTick] | None = None
+    ticks_per_quarter: int | None = None
+
+    class Config:
+        # Allow arbitrary types (needed for TrackTick and TempoTick)
+        arbitrary_types_allowed = True
 
 
 class AriaBaseOutput(TypedDict):
@@ -48,22 +63,28 @@ class AriaBase(Module[MidiTrack, AriaBaseOutput]):
         Generate MIDI continuation from input track using Aria model.
 
         Args:
-            input_track: Input symusic Track
+            input_track: Input MidiTrack with track and tempo information
 
         Returns:
-            AriaBaseOutput containing the generated Track
+            AriaBaseOutput containing the generated MidiTrack
         """
         # Create temporary files
         with tempfile.NamedTemporaryFile(suffix=".mid", delete=False) as input_temp:
             with tempfile.NamedTemporaryFile(suffix=".mid", delete=False) as output_temp:
                 try:
-                    # Convert Track to Score and save to temp file
+                    # Convert MidiTrack to Score and save to temp file
                     score = Score()
-                    score.tracks.append(input_track)
+                    score.tracks.append(input_track.track)
+                    if input_track.tempos:
+                        score.tempos = input_track.tempos
+                    if input_track.ticks_per_quarter:
+                        score.ticks_per_quarter = input_track.ticks_per_quarter
                     score.dump_midi(input_temp.name)
+                    score.dump_midi("./test1.mid")
 
                     # Load MIDI using MidiDict
                     midi_dict = MidiDict.from_midi(input_temp.name)
+                    midi_dict.to_midi().save("./test2.mid")
                     tokens = self.tokenizer.tokenize(midi_dict, add_eos_token=False, add_dim_token=False)
                     token_ids = self.tokenizer._tokenizer.encode(tokens)
                     prompt_input_ids = torch.tensor([token_ids], device=self.device)
@@ -71,7 +92,7 @@ class AriaBase(Module[MidiTrack, AriaBaseOutput]):
                     # Generate continuation
                     continuation = self.model.generate(
                         prompt_input_ids.to(self.device),
-                        max_length=1024,
+                        max_length=512,
                         do_sample=True,
                         temperature=0.97,
                         top_p=0.95,
@@ -81,14 +102,23 @@ class AriaBase(Module[MidiTrack, AriaBaseOutput]):
                     # Decode back into MIDI
                     midi_dict_output = self.tokenizer.decode(continuation[0].tolist())
                     midi_dict_output.to_midi().save(output_temp.name)
+                    midi_dict_output.to_midi().save("./test3.mid")
 
-                    # Load the generated MIDI back as Score and extract the track
+                    # Load the generated MIDI back as Score and extract track and tempos
                     output_score = Score.from_file(output_temp.name)
 
-                    # Return the first track (assuming single track output)
-                    output_track = output_score.tracks[0] if output_score.tracks else Track()
+                    # Create MidiTrack with track and timing information
+                    output_track = output_score.tracks[0] if output_score.tracks else TrackTick()
+                    output_tempos = output_score.tempos if output_score.tempos else None
+                    output_ticks_per_quarter = output_score.ticks_per_quarter if hasattr(output_score, 'ticks_per_quarter') else None
 
-                    return AriaBaseOutput(output_track=output_track)
+                    midi_track = MidiTrack(
+                        track=output_track,
+                        tempos=output_tempos,
+                        ticks_per_quarter=output_ticks_per_quarter
+                    )
+
+                    return AriaBaseOutput(output_track=midi_track)
 
                 finally:
                     # Clean up temporary files

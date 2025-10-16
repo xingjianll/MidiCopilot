@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 
 from symusic import Score
-from symusic.core import TrackTick
+from symusic.core import TrackTick, TempoTick
 
 from src.api.run import repository
 from src.api.workflow import service as workflow_service
@@ -48,8 +48,11 @@ def create_run(run_request: RunCreateRequest) -> Response:
         if not module_class:
             raise ValueError(f"Module '{run_request.module_name}' not found")
 
+        # Convert any file paths to MidiTrack objects before execution
+        converted_inputs = _convert_inputs_for_module(run_request.inputs, module_class)
+
         module_instance = module_class()
-        execution_result = module_instance.run(**run_request.inputs)
+        execution_result = module_instance.run(**converted_inputs)
         workflow_id = None  # No workflow for direct module execution
 
     else:
@@ -60,20 +63,7 @@ def create_run(run_request: RunCreateRequest) -> Response:
     duration = (end_time - start_time).total_seconds()
 
     # Create the run record (with or without workflow_id)
-    if workflow_id is not None:
-        db_run = repository.create_run(workflow_id)
-    else:
-        # For module execution, we need to create a temporary workflow or handle differently
-        # For now, let's create a simple workflow record
-        from src.core.workflow import WorkflowVo
-        temp_workflow = WorkflowVo(
-            name=f"Module_{run_request.module_name}",
-            description=f"Temporary workflow for module {run_request.module_name} execution",
-            edges=[],
-            nodes=[]
-        )
-        workflow_response = workflow_service.create_workflow(temp_workflow)
-        db_run = repository.create_run(workflow_response.id)
+    db_run = repository.create_run(workflow_id)
 
     # Update duration
     repository.update_run_duration(db_run.id, duration)
@@ -101,6 +91,93 @@ def _get_module_class(module_name: str):
     return None
 
 
+def _convert_inputs_for_module(inputs: dict, module_class) -> dict:
+    """
+    Convert file paths to appropriate types based on module signature.
+    For MidiTrack inputs, convert file paths to TrackTick objects.
+    """
+    try:
+        # Get module signature to understand expected input types
+        params, _ = module_class.get_sig()
+        converted_inputs = {}
+
+        print(f"Module signature params: {params}")
+        print(f"Input values: {inputs}")
+
+        for param_name, param_type in params.items():
+            if param_name in inputs:
+                input_value = inputs[param_name]
+                print(f"Processing {param_name}: {param_type} = {input_value}")
+
+                # Check if this parameter expects a MidiTrack/TrackTick
+                # Look for MidiTrack in the type name or check if it's TrackTick
+                param_type_name = getattr(param_type, '__name__', str(param_type))
+                print(f"Parameter type name: {param_type_name}")
+
+                if param_type_name == 'MidiTrack' or param_type == TrackTick:
+                    # Convert file path to TrackTick
+                    if isinstance(input_value, str):
+                        print(f"Converting path to TrackTick: {input_value}")
+                        converted_inputs[param_name] = _load_midi_track_from_path(input_value)
+                    else:
+                        # Already a TrackTick object
+                        converted_inputs[param_name] = input_value
+                else:
+                    # Keep other types as-is
+                    converted_inputs[param_name] = input_value
+            else:
+                print(f"Parameter {param_name} not found in inputs")
+
+        print(f"Converted inputs: {converted_inputs}")
+        return converted_inputs
+
+    except Exception as e:
+        # If signature analysis fails, return inputs as-is
+        print(f"Warning: Could not analyze module signature: {e}")
+        import traceback
+        traceback.print_exc()
+        return inputs
+
+
+def _load_midi_track_from_path(file_path: str):
+    """
+    Load a MIDI file from the given path and return a MidiTrack with track and tempo info.
+    """
+    print(f"Loading MIDI file from path: {file_path}")
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"MIDI file not found: {file_path}")
+
+    try:
+        # Load MIDI file using symusic
+        score = Score.from_file(file_path)
+        score.ticks_per_quarter
+        score.dump_midi("./test0.mid")
+        print(f"Loaded score with {len(score.tracks)} tracks")
+
+        if not score.tracks:
+            raise ValueError(f"No tracks found in MIDI file: {file_path}")
+
+        # Import MidiTrack here to avoid circular imports
+        from src.core.modules.aria_base import MidiTrack
+
+        # Get the first track and timing information
+        track = score.tracks[0]
+        tempos = score.tempos if score.tempos else None
+        ticks_per_quarter = score.ticks_per_quarter
+
+        # Create and return MidiTrack
+        midi_track = MidiTrack(track=track, tempos=tempos, ticks_per_quarter=ticks_per_quarter)
+        print(f"Returning MidiTrack with track type: {type(track)}, {len(tempos) if tempos else 0} tempo changes, and {ticks_per_quarter} ticks per quarter")
+        return midi_track
+
+    except Exception as e:
+        print(f"Error loading MIDI file: {e}")
+        import traceback
+        traceback.print_exc()
+        raise ValueError(f"Failed to load MIDI file {file_path}: {str(e)}")
+
+
 def _handle_midi_track_result(result_dict: dict) -> int | None:
     """
     Check if result contains MidiTrack, save to file, and create sample.
@@ -108,9 +185,12 @@ def _handle_midi_track_result(result_dict: dict) -> int | None:
     """
     midi_track = None
 
+    # Import MidiTrack here to avoid circular imports
+    from src.core.modules.aria_base import MidiTrack
+
     # Look for MidiTrack in the result dictionary
     for key, value in result_dict.items():
-        if isinstance(value, TrackTick):
+        if isinstance(value, MidiTrack):
             midi_track = value
             break
 
@@ -128,7 +208,11 @@ def _handle_midi_track_result(result_dict: dict) -> int | None:
 
     # Save MidiTrack to file
     score = Score()
-    score.tracks.append(midi_track)
+    score.tracks.append(midi_track.track)
+    if midi_track.tempos:
+        score.tempos = midi_track.tempos
+    if midi_track.ticks_per_quarter:
+        score.ticks_per_quarter = midi_track.ticks_per_quarter
     score.dump_midi(str(file_path))
 
     # Create sample record

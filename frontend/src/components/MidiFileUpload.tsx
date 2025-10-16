@@ -71,18 +71,21 @@ export const MidiFileUpload: React.FC<MidiFileUploadProps> = ({
 
   const fetchSamples = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/samples');
+      const response = await fetch('http://localhost:8000/sample/');
       const data = await response.json();
-      setSamples(data.samples.map((s: any) => ({
-        id: s.id,
-        name: s.name,
-        type: 'midi' as const,
-        duration: 0,
-        createdAt: s.createdAt,
-        size: s.size,
-        format: s.format,
-        detailedDescription: '',
-      })));
+      setSamples(data.map((s: any) => {
+        const fileName = s.path.split('/').pop() || `sample-${s.id}`;
+        return {
+          id: s.id.toString(),
+          name: fileName,
+          type: s.type.toLowerCase() as 'midi' | 'audio',
+          duration: 0,
+          createdAt: new Date().toISOString(),
+          size: 0,
+          format: fileName.split('.').pop()?.toUpperCase() || '',
+          detailedDescription: '',
+        };
+      }));
     } catch (error) {
       console.error('Error fetching samples:', error);
     }

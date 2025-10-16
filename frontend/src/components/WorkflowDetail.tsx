@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Edit, Clock, Cpu, Workflow as WorkflowIcon, X, Loader2, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { Workflow } from '../types';
+import { Workflow, Sample } from '../types';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription } from './ui/alert';
 import { MidiFileUpload } from './MidiFileUpload';
+import { BottomDrawer } from './BottomDrawer';
+import { SampleDetail } from './SampleDetail';
 
 interface WorkflowDetailProps {
   workflow: Workflow;
@@ -29,6 +31,8 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     promptLength: number;
   } | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [showResultDrawer, setShowResultDrawer] = useState(false);
+  const [resultSample, setResultSample] = useState<Sample | null>(null);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -51,126 +55,124 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     setStatusMessage('');
 
     try {
-      let response;
-      
-      // Determine which API endpoint to use based on workflow ID
-      let apiEndpoint = 'http://localhost:8000/api/aria/continuation/stream';
-      if (workflow.id === 'aria-harmony') {
-        apiEndpoint = 'http://localhost:8000/api/aria-harmony/continuation/stream';
-      } else if (workflow.id === 'aria-style') {
-        apiEndpoint = 'http://localhost:8000/api/aria-style/continuation/stream';
-      }
-      
+      // Prepare the input data
+      let inputTrackPath: string;
+
       if (selectedFile instanceof File) {
-        // Upload file directly
+        // For uploaded files, we need to upload them first to get a server path
         const formData = new FormData();
         formData.append('file', selectedFile);
-        formData.append('max_length', '1024');
-        formData.append('temperature', '0.97');
-        formData.append('top_p', '0.95');
-        // Add ignore_prompt for harmony and style models
-        if (workflow.id === 'aria-harmony' || workflow.id === 'aria-style') {
-          formData.append('ignore_prompt', 'false');
-        }
-        
-        response = await fetch(apiEndpoint, {
+
+        const uploadResponse = await fetch('http://localhost:8000/sample/upload/', {
           method: 'POST',
           body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload file');
+        }
+
+        const uploadData = await uploadResponse.json();
+        inputTrackPath = uploadData.path;
+      } else {
+        // Use sample file path
+        // Fetch sample details to get the path
+        const sampleResponse = await fetch(`http://localhost:8000/sample/${selectedFile.sampleId}`);
+        if (!sampleResponse.ok) {
+          throw new Error('Failed to get sample details');
+        }
+        const sampleData = await sampleResponse.json();
+        inputTrackPath = sampleData.path;
+      }
+
+      // Prepare run request based on workflow type
+      const runRequest: any = {
+        inputs: {}
+      };
+
+      if (workflow.isModule) {
+        // For modules, use module_name
+        runRequest.module_name = workflow.id;
+
+        // Map inputs - for MidiTrack type, send the file path
+        workflow.inputs.forEach(input => {
+          if (input.type === 'MidiTrack') {
+            runRequest.inputs[input.id] = inputTrackPath;
+          }
         });
       } else {
-        // Use sample file - first download it, then upload
-        console.log('Downloading sample:', selectedFile.sampleId);
-        const sampleResponse = await fetch(`http://localhost:8000/api/samples/${selectedFile.sampleId}/download`);
-        if (!sampleResponse.ok) {
-          throw new Error('Failed to load sample file');
-        }
-        
-        const blob = await sampleResponse.blob();
-        console.log('Sample blob size:', blob.size, 'type:', blob.type);
-        // Ensure the filename has .mid extension
-        const filename = selectedFile.name.endsWith('.mid') || selectedFile.name.endsWith('.midi') 
-          ? selectedFile.name 
-          : `${selectedFile.name}.mid`;
-        const file = new File([blob], filename, { type: 'audio/midi' });
-        console.log('Created file:', file.name, 'size:', file.size);
-        
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('max_length', '1024');
-        formData.append('temperature', '0.97');
-        formData.append('top_p', '0.95');
-        // Add ignore_prompt for harmony and style models
-        if (workflow.id === 'aria-harmony' || workflow.id === 'aria-style') {
-          formData.append('ignore_prompt', 'false');
-        }
-        
-        console.log('Sending ARIA request with sample file');
-        response = await fetch(apiEndpoint, {
-          method: 'POST',
-          body: formData,
-        });
+        // For workflows, use workflow_id (converted to number)
+        runRequest.workflow_id = parseInt(workflow.id);
+        // TODO: Handle workflow inputs based on workflow structure
       }
+
+      console.log('Creating run with request:', runRequest);
+
+      // Call the create run endpoint
+      const response = await fetch('http://localhost:8000/run/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(runRequest),
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('ARIA request failed:', response.status, errorText);
-        throw new Error(`Failed to start generation: ${response.status} ${errorText}`);
+        console.error('Run creation failed:', response.status, errorText);
+        throw new Error(`Failed to create run: ${response.status} ${errorText}`);
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      const runData = await response.json();
+      console.log('Run created:', runData);
 
-      if (!reader) {
-        throw new Error('No response stream available');
-      }
+      // Set success result
+      setResult({
+        success: true,
+        message: `Run created successfully with ID: ${runData.id}`,
+        run_id: runData.id,
+        sample_id: runData.sample_id
+      });
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      setStatusMessage('Run completed successfully!');
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6));
-
-            if (data.type === 'status') {
-              setStatusMessage(data.message);
-            } else if (data.type === 'progress') {
-              setProgress({
-                current: data.current,
-                total: data.total,
-                percentage: data.percentage,
-                generated: data.generated,
-                promptLength: data.prompt_length,
-              });
-            } else if (data.type === 'complete') {
-              setResult({
-                success: true,
-                message: data.message,
-                continuation_filename: data.filename
-              });
-              setStatusMessage('');
-            } else if (data.type === 'error') {
-              setError(data.message);
-            }
-          }
-        }
-      }
     } catch (err: any) {
-      setError(err.message || 'Failed to connect to backend');
+      console.error('Error creating run:', err);
+      setError(err.message || 'Failed to create run');
     } finally {
       setIsRunning(false);
     }
   };
 
-  const handleDownload = () => {
-    if (result?.continuation_filename) {
-      window.open(
-        `http://localhost:8000/api/aria/download/${result.continuation_filename}`,
-        '_blank'
-      );
+  const handleViewSample = async () => {
+    if (result?.sample_id) {
+      try {
+        // Fetch the sample details
+        const response = await fetch(`http://localhost:8000/sample/${result.sample_id}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch sample details');
+        }
+        const sampleData = await response.json();
+
+        // Convert to frontend format
+        const fileName = sampleData.path.split('/').pop() || `sample-${sampleData.id}`;
+        const sample: Sample = {
+          id: sampleData.id.toString(),
+          name: fileName,
+          type: sampleData.type.toLowerCase() as 'midi' | 'audio',
+          duration: 0,
+          createdAt: new Date().toISOString(),
+          size: 0,
+          format: fileName.split('.').pop()?.toUpperCase() || '',
+          detailedDescription: `## ${fileName}\n\n### Sample Details\n- **Type**: ${sampleData.type}\n- **Path**: ${sampleData.path}\n- **Sample ID**: ${sampleData.id}`,
+        };
+
+        setResultSample(sample);
+        setShowResultDrawer(true);
+      } catch (error) {
+        console.error('Error fetching sample:', error);
+        alert('Failed to load sample details');
+      }
     }
   };
 
@@ -366,10 +368,12 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
             <AlertDescription>
               <div className="font-semibold mb-2">Success!</div>
               <div className="text-sm mb-4">{result.message}</div>
-              <Button onClick={handleDownload} size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Download Continuation
-              </Button>
+              {result.sample_id && (
+                <Button onClick={handleViewSample} size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  View Sample (ID: {result.sample_id})
+                </Button>
+              )}
             </AlertDescription>
           </Alert>
         </motion.div>
@@ -407,6 +411,15 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
           </Button>
         )}
       </div>
+
+      {/* Bottom Drawer for Sample Result */}
+      <BottomDrawer
+        isOpen={showResultDrawer}
+        onClose={() => setShowResultDrawer(false)}
+        title={resultSample ? `Generated Sample: ${resultSample.name}` : 'Generated Sample'}
+      >
+        {resultSample && <SampleDetail sample={resultSample} />}
+      </BottomDrawer>
     </div>
   );
 };

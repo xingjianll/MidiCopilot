@@ -8,6 +8,7 @@ dependencies = [
     "ariautils",
     "fastapi>=0.116.1",
     "pydantic>=2.10.6",
+    "python-multipart>=0.0.20",
     "sqlalchemy>=2.0.44",
     "symusic>=0.5.8",
     "torch>=2.9.0",

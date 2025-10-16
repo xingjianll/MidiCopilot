@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 
 from src.api.sample import service
 from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteResponse
@@ -12,6 +12,11 @@ router = APIRouter(
 @router.post("/")
 def create_sample(sample_request: SampleCreateRequest) -> Response:
     return service.create_sample(sample_request)
+
+
+@router.post("/upload/")
+def upload_sample(file: UploadFile = File(...)) -> Response:
+    return service.upload_sample(file)
 
 
 @router.get("/{sample_id}")
