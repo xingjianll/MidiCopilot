@@ -34,20 +34,22 @@ export const RunsPage: React.FC = () => {
         const transformedRuns: Run[] = await Promise.all(
           data.map(async (runData: any) => {
             // Fetch workflow details to get workflow name
-            let workflowName = `Workflow ${runData.workflow_id}`;
-            try {
-              const workflowResponse = await fetch(`http://localhost:8000/workflow/${runData.workflow_id}`);
-              if (workflowResponse.ok) {
-                const workflowData = await workflowResponse.json();
-                workflowName = workflowData.name || workflowName;
+            let workflowName = runData.workflow_id ? `Workflow ${runData.workflow_id}` : 'Module Run';
+            if (runData.workflow_id) {
+              try {
+                const workflowResponse = await fetch(`http://localhost:8000/workflow/${runData.workflow_id}`);
+                if (workflowResponse.ok) {
+                  const workflowData = await workflowResponse.json();
+                  workflowName = workflowData.name || workflowName;
+                }
+              } catch (err) {
+                console.warn('Failed to fetch workflow name:', err);
               }
-            } catch (err) {
-              console.warn('Failed to fetch workflow name:', err);
             }
 
             return {
               id: runData.id.toString(),
-              workflowId: runData.workflow_id.toString(),
+              workflowId: runData.workflow_id ? runData.workflow_id.toString() : null,
               workflowName,
               detailedDescription: `## Run ${runData.id}\n\nExecution details for ${workflowName}\n\n### Run Information\n- **Run ID**: ${runData.id}\n- **Workflow ID**: ${runData.workflow_id}\n- **Duration**: ${runData.duration ? `${runData.duration.toFixed(2)}s` : 'N/A'}\n- **Sample ID**: ${runData.sample_id || 'None'}`,
               status: runData.duration !== null ? 'completed' : 'running',

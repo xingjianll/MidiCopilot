@@ -14,8 +14,23 @@ import ReactFlow, {
   Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Save, Play, ArrowLeft, Cpu, Loader2, ArrowRight, ArrowDown } from 'lucide-react';
+import { Save, Play, ArrowLeft, Cpu, Loader2, ArrowRight, ArrowDown, ChevronDown, ChevronRight, Folder, FolderOpen } from 'lucide-react';
 import { theme } from '../theme';
+import { 
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarProvider,
+  SidebarInset
+} from './ui/sidebar2';
+import { Button } from './ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@radix-ui/react-collapsible';
 import { Workflow } from '../types';
 import { WorkflowDetail } from './WorkflowDetail';
 import { AriaExecutionPanel } from './AriaExecutionPanel';
@@ -202,6 +217,8 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
+  const [ioFolderOpen, setIoFolderOpen] = useState(true);
+  const [modulesFolderOpen, setModulesFolderOpen] = useState(true);
 
   // Fetch modules from backend
   useEffect(() => {
@@ -733,254 +750,187 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <div
-        style={{
-          width: '300px',
-          background: theme.colors.glass.surface,
-          backdropFilter: theme.blur.md,
-          borderRight: `1px solid ${theme.colors.glass.border}`,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        onClick={(e) => {
-          // Only clear selection if clicking empty space in sidebar
-          if (e.target === e.currentTarget) {
-            setSelectedWorkflow(null);
-          }
-        }}
-      >
-        <div
-          style={{
-            padding: theme.spacing.lg,
-            borderBottom: `1px solid ${theme.colors.border}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.md,
-          }}
-          onClick={() => setSelectedWorkflow(null)}
-        >
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onBack();
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              background: theme.colors.surface,
-              border: `1px solid ${theme.colors.border}`,
-              borderRadius: theme.borderRadius.md,
-              color: theme.colors.text.primary,
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowLeft size={16} />
-          </motion.button>
-          <h2
-            style={{
-              margin: 0,
-              color: theme.colors.text.primary,
-              fontSize: '1.25rem',
-              fontWeight: '600',
-            }}
-          >
-            Editor
-          </h2>
-        </div>
-
-        <div 
-          style={{ flex: 1, overflow: 'auto', padding: theme.spacing.lg }}
+    <div className="h-screen">
+      <SidebarProvider defaultOpen={true}>
+        <Sidebar side="left" variant="sidebar" collapsible="none" className="w-80 h-screen"
+          style={{ height: '100vh' }}
           onClick={(e) => {
-            // Clear selection if clicking empty space in sidebar content
+            // Only clear selection if clicking empty space in sidebar
             if (e.target === e.currentTarget) {
               setSelectedWorkflow(null);
             }
           }}
         >
-          <h3
-            style={{
-              margin: 0,
-              marginBottom: theme.spacing.md,
-              color: theme.colors.text.primary,
-              fontSize: '1rem',
-              fontWeight: '600',
-            }}
-            onClick={() => setSelectedWorkflow(null)}
-          >
-            Modules
-          </h3>
-          
-          {loading ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl }}>
-              <Loader2 size={24} className="animate-spin" style={{ color: theme.colors.text.secondary }} />
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-              {modules.map((module) => (
-                <motion.div
-                  key={module.id}
-                  draggable
-                  onDragStart={(event) => onDragStart(event, module)}
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent bubbling to parent
-                    handleWorkflowClick(module);
-                  }}
-                  whileHover={{ scale: 1.02 }}
-                  style={{
-                    padding: theme.spacing.md,
-                    background: theme.colors.surface,
-                    border: `1px solid ${theme.colors.border}`,
-                    borderRadius: theme.borderRadius.md,
-                    cursor: 'grab',
-                    userSelect: 'none',
-                  }}
-                >
-                  <div
-                    style={{
-                      color: theme.colors.text.primary,
-                      fontWeight: '500',
-                      fontSize: '0.9rem',
-                      marginBottom: theme.spacing.xs,
-                    }}
-                  >
-                    {module.name}
-                  </div>
-                  <div
-                    style={{
-                      color: theme.colors.text.secondary,
-                      fontSize: '0.8rem',
-                      lineHeight: '1.3',
-                    }}
-                  >
-                    {module.description}
-                  </div>
-                  <div style={{ marginTop: theme.spacing.xs }}>
-                    <span
-                      style={{
-                        background: theme.colors.accent.secondary,
-                        color: theme.colors.text.primary,
-                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        borderRadius: theme.borderRadius.sm,
-                        fontSize: '0.7rem',
-                        fontWeight: '500',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      Module
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
-            
-              {/* Clear selection area */}
-              <div
-                style={{
-                  height: '100px',
-                  flexGrow: 1,
-                  minHeight: '20px',
+          <SidebarHeader className="border-b">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="icon-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onBack();
                 }}
-                onClick={() => {
-                  setSelectedWorkflow(null);
-                }}
-              />
+              >
+                <ArrowLeft size={16} />
+              </Button>
+              <h2 className="text-lg font-semibold">Editor</h2>
             </div>
-          )}
-        </div>
-      </div>
+          </SidebarHeader>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div
-          style={{
-            padding: theme.spacing.lg,
-            borderBottom: `1px solid ${theme.colors.border}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: theme.colors.glass.surface,
-            backdropFilter: theme.blur.sm,
-          }}
-        >
+          <SidebarContent>
+            {loading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 size={24} className="animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                {/* I/O Nodes Group */}
+                <SidebarGroup>
+                  <Collapsible open={ioFolderOpen} onOpenChange={setIoFolderOpen}>
+                    <CollapsibleTrigger asChild>
+                      <SidebarGroupLabel className="group/collapsible hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          {ioFolderOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          {ioFolderOpen ? <FolderOpen size={16} /> : <Folder size={16} />}
+                          I/O Nodes
+                        </div>
+                      </SidebarGroupLabel>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarGroupContent>
+                        <SidebarMenu>
+                          {modules.filter(module => module.name === 'InputNode' || module.name === 'OutputNode').map((module) => (
+                            <SidebarMenuItem key={module.id}>
+                              <div
+                                draggable
+                                onDragStart={(event) => onDragStart(event, module)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleWorkflowClick(module);
+                                }}
+                                className="p-3 bg-card border-2 border-border rounded-lg cursor-grab select-none hover:shadow-sm transition-shadow"
+                              >
+                                <div className="font-medium text-sm mb-1">
+                                  {module.name}
+                                </div>
+                                <div className="text-muted-foreground text-xs leading-snug mb-2">
+                                  {module.description}
+                                </div>
+                                <span className="inline-flex items-center px-2 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-sm uppercase tracking-wide">
+                                  I/O
+                                </span>
+                              </div>
+                            </SidebarMenuItem>
+                          ))}
+                        </SidebarMenu>
+                      </SidebarGroupContent>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </SidebarGroup>
+
+                {/* Modules Group */}
+                <SidebarGroup>
+                  <Collapsible open={modulesFolderOpen} onOpenChange={setModulesFolderOpen}>
+                    <CollapsibleTrigger asChild>
+                      <SidebarGroupLabel className="group/collapsible hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          {modulesFolderOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          {modulesFolderOpen ? <FolderOpen size={16} /> : <Folder size={16} />}
+                          Modules
+                        </div>
+                      </SidebarGroupLabel>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarGroupContent>
+                        <SidebarMenu>
+                          {modules.filter(module => module.name !== 'InputNode' && module.name !== 'OutputNode').map((module) => (
+                            <SidebarMenuItem key={module.id}>
+                              <div
+                                draggable
+                                onDragStart={(event) => onDragStart(event, module)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleWorkflowClick(module);
+                                }}
+                                className="p-3 bg-card border-2 border-border rounded-lg cursor-grab select-none hover:shadow-sm transition-shadow"
+                              >
+                                <div className="font-medium text-sm mb-1">
+                                  {module.name}
+                                </div>
+                                <div className="text-muted-foreground text-xs leading-snug mb-2">
+                                  {module.description}
+                                </div>
+                                <span className="inline-flex items-center px-2 py-1 bg-secondary text-secondary-foreground text-xs font-medium rounded-sm uppercase tracking-wide">
+                                  Module
+                                </span>
+                              </div>
+                            </SidebarMenuItem>
+                          ))}
+                        </SidebarMenu>
+                      </SidebarGroupContent>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </SidebarGroup>
+              </>
+            )}
+          </SidebarContent>
+        </Sidebar>
+        
+      <SidebarInset>
+        <style>
+          {`
+            .workflow-reactflow .react-flow__edge path {
+              stroke: #1d4ed8 !important;
+              stroke-width: 4 !important;
+              stroke-opacity: 1 !important;
+            }
+            .workflow-reactflow .react-flow__connectionline path {
+              stroke: #1d4ed8 !important;
+              stroke-width: 4 !important;
+              stroke-opacity: 1 !important;
+            }
+            .workflow-reactflow .react-flow__connection path {
+              stroke: #1d4ed8 !important;
+              stroke-width: 4 !important;
+            }
+          `}
+        </style>
+        <div className="flex flex-1 flex-col h-screen">
+        <div className="flex items-center justify-between p-6 border-b bg-sidebar">
           <div>
-            <h1
-              style={{
-                margin: 0,
-                color: theme.colors.text.primary,
-                fontSize: '1.5rem',
-                fontWeight: '600',
-              }}
-            >
+            <h1 className="text-2xl font-semibold text-sidebar-foreground m-0">
               {currentWorkflow?.name || 'Workflow Editor'}
             </h1>
             {currentWorkflow && (
-              <p
-                style={{
-                  margin: 0,
-                  marginTop: '4px',
-                  color: theme.colors.text.secondary,
-                  fontSize: '0.9rem',
-                }}
-              >
+              <p className="text-sm text-sidebar-foreground/70 mt-1 m-0">
                 {currentWorkflow.description}
               </p>
             )}
           </div>
           
-          <div style={{ display: 'flex', gap: theme.spacing.md }}>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+          <div className="flex gap-3">
+            <Button
               onClick={handleSave}
               disabled={saving}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-                background: saving ? theme.colors.border : theme.colors.surface,
-                color: theme.colors.text.primary,
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.borderRadius.lg,
-                cursor: saving ? 'not-allowed' : 'pointer',
-                fontWeight: '500',
-                opacity: saving ? 0.6 : 1,
-              }}
+              variant="outline"
+              size="lg"
             >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
               {saving ? 'Saving...' : 'Save'}
-            </motion.button>
+            </Button>
             
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <Button
               onClick={() => setShowExecutionPanel(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing.sm,
-                padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-                background: theme.colors.accent.primary,
-                color: theme.colors.text.primary,
-                border: 'none',
-                borderRadius: theme.borderRadius.lg,
-                cursor: 'pointer',
-                fontWeight: '500',
-              }}
+              size="lg"
             >
-              <Play size={16} />
+              <Play size={16} className="mr-2" />
               Run
-            </motion.button>
+            </Button>
           </div>
         </div>
 
-        <div style={{ flex: 1, display: 'flex' }}>
-          <div style={{ flex: 1, background: theme.colors.background }}>
+        <div className="flex-1 flex h-0">
+          <div className="flex-1 bg-sidebar">
             <ReactFlow
             nodes={nodes.map(node => {
               const baseNode = {
@@ -1027,15 +977,20 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
-            style={{ background: theme.colors.background }}
+            style={{ 
+              background: 'hsl(var(--sidebar))',
+              '--edge-stroke': '#1d4ed8',
+              '--connectionline-stroke': '#1d4ed8'
+            }}
             defaultEdgeOptions={{
-              style: { stroke: '#4A90E2', strokeWidth: 3 },
+              style: { stroke: '#1d4ed8', strokeWidth: 4, strokeOpacity: 1 },
               type: 'smoothstep',
             }}
-            connectionLineStyle={{ stroke: '#4A90E2', strokeWidth: 3 }}
+            connectionLineStyle={{ stroke: '#1d4ed8', strokeWidth: 4, strokeOpacity: 1 }}
             nodesDraggable={true}
             nodesConnectable={true}
             elementsSelectable={false}
+            className="workflow-reactflow"
           >
             <Controls
               style={{
@@ -1048,79 +1003,35 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
               variant={BackgroundVariant.Dots} 
               gap={25} 
               size={2} 
-              color={theme.colors.border}
+              color="hsl(var(--sidebar-border))"
             />
           </ReactFlow>
           </div>
 
           {/* Right Sidebar - Workflow I/O */}
-          <div
-            style={{
-              width: '300px',
-              background: theme.colors.glass.surface,
-              backdropFilter: theme.blur.md,
-              borderLeft: `1px solid ${theme.colors.glass.border}`,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <div
-              style={{
-                padding: theme.spacing.lg,
-                borderBottom: `1px solid ${theme.colors.border}`,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  color: theme.colors.text.primary,
-                  fontSize: '1rem',
-                  fontWeight: '600',
-                }}
-              >
+          <div className="w-80 bg-sidebar border-l border-sidebar-border flex flex-col h-full">
+            <div className="p-6 border-b border-border">
+              <h3 className="text-lg font-semibold text-sidebar-foreground m-0">
                 Workflow I/O
               </h3>
             </div>
 
-            <div style={{ flex: 1, overflow: 'auto', padding: theme.spacing.lg }}>
+            <div className="flex-1 overflow-y-auto p-6" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               {/* Inputs Section */}
-              <div style={{ marginBottom: theme.spacing.xl }}>
-                <h4
-                  style={{
-                    margin: 0,
-                    marginBottom: theme.spacing.md,
-                    color: theme.colors.text.primary,
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                  }}
-                >
+              <div className="mb-8">
+                <h4 className="text-sm font-semibold text-sidebar-foreground mb-4 m-0">
                   Inputs ({workflowInputs.length})
                 </h4>
                 {workflowInputs.length === 0 ? (
-                  <div
-                    style={{
-                      padding: theme.spacing.md,
-                      background: theme.colors.surface,
-                      border: `1px dashed ${theme.colors.border}`,
-                      borderRadius: theme.borderRadius.md,
-                      textAlign: 'center',
-                      color: theme.colors.text.secondary,
-                      fontSize: '0.8rem',
-                    }}
-                  >
+                  <div className="p-4 bg-muted border border-dashed border-border rounded-md text-center text-muted-foreground text-sm">
                     Add InputNode to define workflow inputs
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+                  <div className="flex flex-col gap-3">
                     {workflowInputs.map((input, index) => (
                       <div
                         key={index}
-                        style={{
-                          padding: theme.spacing.md,
-                          background: theme.colors.surface,
-                          border: `1px solid ${theme.colors.border}`,
-                          borderRadius: theme.borderRadius.md,
-                        }}
+                        className="p-4 bg-card border border-border rounded-md"
                       >
                         <div style={{ marginBottom: theme.spacing.sm }}>
                           <label
@@ -1183,15 +1094,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
 
               {/* Outputs Section */}
               <div>
-                <h4
-                  style={{
-                    margin: 0,
-                    marginBottom: theme.spacing.md,
-                    color: theme.colors.text.primary,
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                  }}
-                >
+                <h4 className="text-sm font-semibold text-sidebar-foreground mb-4 m-0">
                   Outputs ({workflowOutputs.length})
                 </h4>
                 {workflowOutputs.length === 0 ? (
@@ -1265,8 +1168,8 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
               </div>
             </div>
           </div>
+          </div>
         </div>
-      </div>
 
       {/* Detail Drawer */}
       <AnimatePresence>
@@ -1460,18 +1363,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
                   onChange={(e) => setWorkflowDescription(e.target.value)}
                   placeholder="Enter workflow description..."
                   rows={4}
-                  style={{
-                    width: '100%',
-                    padding: theme.spacing.md,
-                    border: `1px solid ${theme.colors.border}`,
-                    borderRadius: theme.borderRadius.md,
-                    background: theme.colors.background,
-                    color: theme.colors.text.primary,
-                    fontSize: '1rem',
-                    outline: 'none',
-                    resize: 'vertical',
-                    fontFamily: 'inherit',
-                  }}
+                  className="w-full p-3 border border-border rounded-md bg-background text-foreground text-base outline-none resize-y font-[inherit] focus:ring-2 focus:ring-ring focus:border-ring"
                 />
               </div>
 
@@ -1520,6 +1412,8 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({ workflowId, onBa
           </>
         )}
       </AnimatePresence>
+      </SidebarInset>
+    </SidebarProvider>
     </div>
   );
 };

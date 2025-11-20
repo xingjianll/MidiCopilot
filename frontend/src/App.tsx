@@ -70,20 +70,22 @@ function App() {
 
   // For other views, use shadcn SidebarInset layout
   return (
-    <SidebarProvider>
-      <AppSidebar activeTab={activeTab} onTabChange={handleTabChange} />
-      <SidebarInset>
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          className="flex flex-1 flex-col"
-        >
-          {renderContent()}
-        </motion.div>
-      </SidebarInset>
-    </SidebarProvider>
+    <div className="h-screen flex">
+      <SidebarProvider>
+        <AppSidebar activeTab={activeTab} onTabChange={handleTabChange} />
+        <SidebarInset className="flex-1 flex flex-col h-full overflow-hidden">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-1 flex-col h-full overflow-hidden"
+          >
+            {renderContent()}
+          </motion.div>
+        </SidebarInset>
+      </SidebarProvider>
+    </div>
   );
 }
 

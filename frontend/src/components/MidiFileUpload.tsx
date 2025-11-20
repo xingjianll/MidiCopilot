@@ -215,7 +215,10 @@ export const MidiFileUpload: React.FC<MidiFileUploadProps> = ({
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setShowSamples(!showSamples)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSamples(!showSamples);
+                }}
                 style={{
                   width: '100%',
                   display: 'flex',

@@ -8,6 +8,10 @@ class SampleCreateRequest(BaseModel):
     path: str
 
 
+class SamplePlayRequest(BaseModel):
+    port: str  # MIDI output port name
+
+
 class Response(BaseModel):
     id: int
     type: SampleType
@@ -15,4 +19,8 @@ class Response(BaseModel):
 
 
 class DeleteResponse(BaseModel):
+    message: str
+
+
+class PlayResponse(BaseModel):
     message: str

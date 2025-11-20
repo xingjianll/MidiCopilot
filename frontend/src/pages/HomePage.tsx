@@ -188,12 +188,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onEditWorkflow }) => {
 
   if (viewMode === 'column') {
     return (
-      <>
+      <div className="flex flex-col h-full">
         <PageHeader
           title="Workflows"
           actions={<ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />}
         />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden min-h-0">
           {/* Column view: Split screen */}
           <div className="w-96 flex flex-col border-r">
             <div className="flex flex-col flex-1 overflow-hidden">
@@ -239,7 +239,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onEditWorkflow }) => {
             )}
           </div>
         </div>
-      </>
+      </div>
     );
   }
 

@@ -118,18 +118,19 @@ export const SamplesPage: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8000/sample/', {
+      const response = await fetch('http://localhost:8000/sample/upload/', {
         method: 'POST',
         body: formData,
       });
 
-      const data = await response.json();
-      
-      if (data.success) {
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Sample uploaded successfully:', data);
         // Refresh samples list
         await fetchSamples();
       } else {
-        alert('Failed to upload sample: ' + (data.error || data.message));
+        const errorData = await response.json();
+        alert('Failed to upload sample: ' + (errorData.error || errorData.message || response.statusText));
       }
     } catch (error) {
       console.error('Error uploading sample:', error);
@@ -169,15 +170,10 @@ export const SamplesPage: React.FC = () => {
     }
   };
 
-  const handleDownload = (sampleId: string) => {
-    // TODO: Backend doesn't have download endpoint yet
-    // window.open(`http://localhost:8000/sample/${sampleId}/download`, '_blank');
-    console.log('Download not implemented yet for sample:', sampleId);
-  };
 
   if (viewMode === 'column') {
     return (
-      <>
+      <div className="flex flex-col h-full">
         <PageHeader
           title="Samples"
           actions={
@@ -212,7 +208,7 @@ export const SamplesPage: React.FC = () => {
             </div>
           }
         />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden min-h-0">
           {/* Column view: Split screen */}
           <div className="w-96 flex flex-col border-r">
             <div className="flex-1 overflow-auto">
@@ -244,16 +240,10 @@ export const SamplesPage: React.FC = () => {
           </div>
 
           {/* Detail panel takes remaining space */}
-          <div className="flex-1 overflow-auto p-6 bg-muted/50">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 bg-muted/50">
             {selectedSample && (
               <div className="relative">
                 <div className="absolute top-0 right-0 flex gap-2 z-10">
-                  <Button
-                    onClick={() => handleDownload(selectedSample.id)}
-                    size="sm"
-                  >
-                    Download
-                  </Button>
                   <Button
                     onClick={() => handleDelete(selectedSample.id)}
                     variant="destructive"
@@ -267,7 +257,7 @@ export const SamplesPage: React.FC = () => {
             )}
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -344,16 +334,10 @@ export const SamplesPage: React.FC = () => {
 
       {/* Sheet overlay for card view */}
       <Sheet open={!!selectedSample} onOpenChange={() => setSelectedSample(null)}>
-        <SheetContent className="w-[500px] overflow-auto">
+        <SheetContent className="w-[500px] overflow-y-auto overflow-x-hidden">
           {selectedSample && (
             <div className="relative">
               <div className="absolute top-0 right-0 flex gap-2 z-10">
-                <Button
-                  onClick={() => handleDownload(selectedSample.id)}
-                  size="sm"
-                >
-                  Download
-                </Button>
                 <Button
                   onClick={() => handleDelete(selectedSample.id)}
                   variant="destructive"
@@ -372,7 +356,7 @@ export const SamplesPage: React.FC = () => {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".mid,.midi"
+        accept=".mid,.midi,.wav,.mp3,.flac,.ogg"
         onChange={handleFileUpload}
         className="hidden"
       />

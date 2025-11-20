@@ -33,7 +33,7 @@ class AriaHarmonization(Module[MidiTrack, AriaHarmonizationOutput]):
         )
 
         # Load model
-        checkpoint_path = "/Users/xingjianliu/repos/symbolic-music-generation/checkpoints/aria/aria-harmony-epoch=02-val_loss=4.2002.ckpt"
+        checkpoint_path = "/Users/kevin/PycharmProjects/symbolic-music-generation/checkpoints/aria/aria-harmony-epoch=02-val_loss=4.2002.ckpt"
         self.model = MidiAria(self.tokenizer, None)
         self.model.to_lora()
         state_dict = torch.load(checkpoint_path, map_location=torch.device('cpu'))['state_dict']
@@ -75,7 +75,7 @@ class AriaHarmonization(Module[MidiTrack, AriaHarmonizationOutput]):
                     # Generate harmonization
                     continuation = self.model.model.generate(
                         prompt_input_ids.to('cpu'),
-                        max_length=512,
+                        max_length=256,
                         do_sample=True,
                         temperature=0.97,
                         top_p=0.95,

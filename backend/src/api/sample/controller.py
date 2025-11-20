@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+from fastapi.responses import FileResponse
 
 from src.api.sample import service
-from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteResponse
+from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteResponse, SamplePlayRequest, PlayResponse
 
 router = APIRouter(
     prefix="/sample",
@@ -46,3 +47,21 @@ def delete_sample(sample_id: int) -> DeleteResponse:
     if deleted is None:
         raise HTTPException(status_code=404, detail="Sample not found")
     return deleted
+
+
+@router.get("/{sample_id}/download")
+def download_sample(sample_id: int):
+    sample = service.get_sample(sample_id)
+    if sample is None:
+        raise HTTPException(status_code=404, detail="Sample not found")
+    
+    return FileResponse(
+        path=sample.path,
+        media_type='application/octet-stream',
+        filename=sample.path.split('/')[-1]
+    )
+
+
+@router.post("/{sample_id}/play")
+def play_sample(sample_id: int, play_request: SamplePlayRequest) -> PlayResponse:
+    return service.play_sample(sample_id, play_request)

@@ -33,7 +33,7 @@ class AriaChopin(Module[MidiTrack, AriaChopinOutput]):
         )
 
         # Load model
-        checkpoint_path = "/Users/xingjianliu/repos/symbolic-music-generation/checkpoints/aria/aria-style-epoch=06-val_loss=2.0712.ckpt"
+        checkpoint_path = "/Users/kevin/PycharmProjects/symbolic-music-generation/checkpoints/aria/aria-style-epoch=06-val_loss=2.0712.ckpt"
         self.model = MidiAria(self.tokenizer, None)
         self.model.to_lora()
         state_dict = torch.load(checkpoint_path, map_location=torch.device('cpu'))['state_dict']
@@ -43,7 +43,7 @@ class AriaChopin(Module[MidiTrack, AriaChopinOutput]):
     def description(cls) -> str:
         return "Generate MIDI in Chopin style using Aria model from input track"
 
-    def run(self, input_track: MidiTrack) -> AriaChopinOutput:
+    def run(self, input_track: MidiTrack, max_length: int) -> AriaChopinOutput:
         """
         Generate MIDI in Chopin style from input track using Aria model.
 
@@ -75,7 +75,7 @@ class AriaChopin(Module[MidiTrack, AriaChopinOutput]):
                     # Generate continuation
                     continuation = self.model.model.generate(
                         prompt_input_ids.to('cpu'),
-                        max_length=512,
+                        max_length=max_length,
                         do_sample=True,
                         temperature=0.97,
                         top_p=0.95,

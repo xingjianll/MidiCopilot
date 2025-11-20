@@ -1,9 +1,11 @@
 import os
+import time
+import mido
 from pathlib import Path
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 
 from src.api.sample import repository
-from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteResponse
+from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteResponse, SamplePlayRequest, PlayResponse
 from src.api.sample.table.sample import SampleType
 
 
@@ -91,3 +93,39 @@ def upload_sample(file: UploadFile) -> Response:
     )
 
     return create_sample(sample_request)
+
+
+def play_sample(sample_id: int, play_request: SamplePlayRequest) -> PlayResponse:
+    """Play a MIDI sample through the specified output port"""
+    # Get the sample from database
+    db_sample = repository.get_sample(sample_id)
+    if db_sample is None:
+        raise HTTPException(status_code=404, detail="Sample not found")
+    
+    # Only play MIDI files
+    if db_sample.type != SampleType.MIDI:
+        raise HTTPException(status_code=400, detail="Can only play MIDI files")
+    
+    # Check if file exists
+    if not os.path.exists(db_sample.path):
+        raise HTTPException(status_code=404, detail="Sample file not found")
+    
+    try:
+        # Load the MIDI file
+        midi_file = mido.MidiFile(db_sample.path)
+        
+        # Open the output port
+        with mido.open_output(play_request.port) as port:
+            # Play all messages in the MIDI file
+            for message in midi_file.play():
+                port.send(message)
+        
+        return PlayResponse(message=f"Successfully played MIDI file through port '{play_request.port}'")
+    
+    except OSError as e:
+        if "cannot open port" in str(e).lower():
+            raise HTTPException(status_code=400, detail=f"Cannot open MIDI port '{play_request.port}'. Port may not exist or be in use.")
+        else:
+            raise HTTPException(status_code=500, detail=f"Error opening MIDI file: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error playing MIDI file: {str(e)}")
