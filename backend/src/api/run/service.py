@@ -1,6 +1,8 @@
+import inspect
 import os
 from pathlib import Path
 from datetime import datetime
+from typing import Type, Optional
 
 from symusic import Score
 from symusic.core import TrackTick, TempoTick
@@ -13,6 +15,7 @@ from src.api.sample.dto.sample_dto import SampleCreateRequest
 from src.api.sample.table.sample import SampleType
 from src.core.module import Module
 from src.core.workflow import Workflow
+from src.utils import stringify
 
 
 def create_run(run_request: RunCreateRequest) -> Response:
@@ -49,6 +52,7 @@ def create_run(run_request: RunCreateRequest) -> Response:
         execution_result = workflow_instance.run(**converted_inputs)
 
     elif run_request.module_name is not None:
+        print(run_request)
         # Execute module directly (no workflow needed)
         module_class = _get_module_class(run_request.module_name)
         if not module_class:
@@ -56,6 +60,7 @@ def create_run(run_request: RunCreateRequest) -> Response:
 
         # Convert any file paths to MidiTrack objects before execution
         converted_inputs = _convert_inputs_for_module(run_request.inputs, module_class)
+        print(converted_inputs)
 
         module_instance = module_class()
         execution_result = module_instance.run(**converted_inputs)
@@ -88,13 +93,19 @@ def create_run(run_request: RunCreateRequest) -> Response:
 
 def _get_module_class(module_name: str):
     """Get module class by name from registered subclasses."""
-    for module_vo in Module.registered_subclasses():
-        if module_vo.name == module_name:
-            # Find the actual class by name
-            for subclass in Module.__subclasses__():
-                if subclass.__name__ == module_name:
-                    return subclass
-    return None
+
+    def walk(subclass: Type["Module"], module_name: str) -> Optional[Type["Module"]]:
+        if not inspect.isabstract(subclass):
+            if subclass.__name__ == module_name:
+                return subclass
+
+        for child in subclass.__subclasses__():
+            m = walk(child, module_name)
+            if m is not None:
+                return m
+        return None
+
+    return walk(Module, module_name)
 
 
 def _convert_inputs_for_module(inputs: dict, module_class) -> dict:
@@ -102,48 +113,16 @@ def _convert_inputs_for_module(inputs: dict, module_class) -> dict:
     Convert file paths to appropriate types based on module signature.
     For MidiTrack inputs, convert file paths to TrackTick objects.
     """
-    try:
-        # Get module signature to understand expected input types
-        params, _ = module_class.get_sig()
-        converted_inputs = {}
-
-        print(f"Module signature params: {params}")
-        print(f"Input values: {inputs}")
-
-        for param_name, param_type in params.items():
-            if param_name in inputs:
-                input_value = inputs[param_name]
-                print(f"Processing {param_name}: {param_type} = {input_value}")
-
-                # Check if this parameter expects a MidiTrack/TrackTick
-                # Look for MidiTrack in the type name or check if it's TrackTick
-                param_type_name = getattr(param_type, '__name__', str(param_type))
-                print(f"Parameter type name: {param_type_name}")
-
-                if param_type_name == 'MidiTrack' or param_type == TrackTick:
-                    # Convert file path to TrackTick
-                    if isinstance(input_value, str):
-                        print(f"Converting path to TrackTick: {input_value}")
-                        converted_inputs[param_name] = _load_midi_track_from_path(input_value)
-                    else:
-                        # Already a TrackTick object
-                        converted_inputs[param_name] = input_value
-                else:
-                    # Keep other types as-is
-                    converted_inputs[param_name] = input_value
-            else:
-                print(f"Parameter {param_name} not found in inputs")
-
-        print(f"Converted inputs: {converted_inputs}")
-        return converted_inputs
-
-    except Exception as e:
-        # If signature analysis fails, return inputs as-is
-        print(f"Warning: Could not analyze module signature: {e}")
-        import traceback
-        traceback.print_exc()
-        return inputs
-
+    params, _ = module_class.get_sig()
+    for param_name, param_type in stringify(params).items():
+        if param_name in inputs:
+            input_value = inputs[param_name]
+            # Check if this parameter expects a MidiTrack/TrackTick
+            # Look for MidiTrack in the type name or check if it's TrackTick
+            if "MidiTrack" in param_type:
+                if isinstance(input_value, str):
+                    inputs[param_name] = _load_midi_track_from_path(input_value)
+    return inputs
 
 def _convert_inputs_for_workflow_modules(inputs: dict, workflow_vo) -> dict:
     """
