@@ -30,7 +30,7 @@ class Module[**P, O: TypedDict](Runnable[P, O]):
         """Return all non-abstract subclasses with their type signatures (as strings)."""
         from src.core.modules.aria_base import AriaBase
         from src.core.modules.aria_chopin import AriaChopin
-        from src.core.modules.aria_harmonization import AriaHarmonization
+        from src.core.modules.aria_harmonization import Harmonizer
 
         modules: list[ModuleVo] = []
 

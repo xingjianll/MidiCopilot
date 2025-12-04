@@ -14,11 +14,11 @@ from src.core.modules.aria_base import MidiTrack
 from src.core.model.model import MidiAria
 
 
-class AriaHarmonizationOutput(TypedDict):
+class HarmonizerOutput(TypedDict):
     output_track: MidiTrack
 
 
-class AriaHarmonization(Module[[MidiTrack], AriaHarmonizationOutput]):
+class Harmonizer(Module[[MidiTrack], HarmonizerOutput]):
     def __init__(self):
         # Set up device
         self.device = "mps" if torch.backends.mps.is_available() else "cpu"
@@ -43,7 +43,7 @@ class AriaHarmonization(Module[[MidiTrack], AriaHarmonizationOutput]):
     def description(cls) -> str:
         return "Generate MIDI harmonization using Aria style model from input melody"
 
-    def run(self, input_track: MidiTrack) -> AriaHarmonizationOutput:
+    def run(self, input_track: MidiTrack) -> HarmonizerOutput:
         """
         Generate MIDI harmonization from input track using Aria style model.
 
@@ -51,7 +51,7 @@ class AriaHarmonization(Module[[MidiTrack], AriaHarmonizationOutput]):
             input_track: Input MidiTrack with track and tempo information
 
         Returns:
-            AriaHarmonizationOutput containing the harmonized MidiTrack
+            HarmonizerOutput containing the harmonized MidiTrack
         """
         # Create temporary files
         with tempfile.NamedTemporaryFile(suffix=".mid", delete=False) as input_temp:
@@ -104,7 +104,7 @@ class AriaHarmonization(Module[[MidiTrack], AriaHarmonizationOutput]):
                         ticks_per_quarter=output_ticks_per_quarter
                     )
 
-                    return AriaHarmonizationOutput(output_track=midi_track)
+                    return HarmonizerOutput(output_track=midi_track)
 
                 finally:
                     # Clean up temporary files
