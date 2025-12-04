@@ -31,11 +31,34 @@ class Module[**P, O: TypedDict](Runnable[P, O]):
         from src.core.modules.aria_base import AriaBase
         from src.core.modules.aria_chopin import AriaChopin
         from src.core.modules.aria_harmonization import Harmonizer
+        from src.core.modules.aria_gen import AriaGen
 
         modules: list[ModuleVo] = []
 
         def stringify(type_map: dict[str, Type]) -> dict[str, str]:
-            return {k: getattr(v, "__name__", str(v)) for k, v in type_map.items()}
+            result = {}
+            for k, v in type_map.items():
+                # Handle Optional types by checking for Union origin
+                if hasattr(v, '__origin__'):
+                    import typing
+                    # Check if it's a Union type
+                    if v.__origin__ is typing.Union:
+                        args = getattr(v, '__args__', ())
+                        if len(args) == 2 and type(None) in args:
+                            # It's Optional[T], extract T
+                            inner_type = args[0] if args[1] is type(None) else args[1]
+                            inner_name = getattr(inner_type, "__name__", str(inner_type))
+                            result[k] = f"Optional[{inner_name}]"
+                        else:
+                            # Generic Union, fall back to str representation
+                            result[k] = str(v)
+                    else:
+                        # Other generic types, fall back to str
+                        result[k] = str(v)
+                else:
+                    # Regular type, use __name__ if available
+                    result[k] = getattr(v, "__name__", str(v))
+            return result
 
         def walk(subclass: Type["Module"]) -> list[ModuleVo]:
             if not inspect.isabstract(subclass):

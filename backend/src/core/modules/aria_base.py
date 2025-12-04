@@ -1,22 +1,17 @@
 import tempfile
 import os
-from typing import TypedDict
+from typing import Any, override, Optional
 
 import torch
 from ariautils.midi import MidiDict
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from symusic import Score
-from symusic.core import TrackTick
 
 from src.core.domain.midi_track import MidiTrack
-from src.core.module import Module
+from src.core.modules.midi_seq2seq import MidiSeq2Seq
 
 
-class AriaBaseOutput(TypedDict):
-    output_track: MidiTrack
-
-
-class AriaBase(Module[[MidiTrack], AriaBaseOutput]):
+class AriaBase(MidiSeq2Seq):
     def __init__(self):
         # Set up device
         self.device = "mps" if torch.backends.mps.is_available() else "cpu"
@@ -39,72 +34,41 @@ class AriaBase(Module[[MidiTrack], AriaBaseOutput]):
     def description(cls) -> str:
         return "Generate MIDI continuation using Aria model from input track"
 
-    def run(self, input_track: MidiTrack) -> AriaBaseOutput:
-        """
-        Generate MIDI continuation from input track using Aria model.
+    @override
+    def _get_model(self) -> Any:
+        return self.model
 
-        Args:
-            input_track: Input MidiTrack with track and tempo information
+    @override
+    def _get_tokenizer(self) -> Any:
+        return self.tokenizer
 
-        Returns:
-            AriaBaseOutput containing the generated MidiTrack
-        """
-        # Create temporary files
+    @override
+    def _get_device(self) -> str:
+        return self.device
+
+    @override
+    def _get_input_sequence_ids(self, input_track: Optional[MidiTrack]) -> torch.Tensor:
+        if input_track is None:
+            token_ids = self.tokenizer._tokenizer.encode([self.tokenizer._tokenizer.bos_tok])
+            return torch.tensor([token_ids], device=self.device)
         with tempfile.NamedTemporaryFile(suffix=".mid", delete=False) as input_temp:
-            with tempfile.NamedTemporaryFile(suffix=".mid", delete=False) as output_temp:
-                try:
-                    # Convert MidiTrack to Score and save to temp file
-                    score = Score()
-                    score.tracks.append(input_track.track)
-                    if input_track.tempos:
-                        score.tempos = input_track.tempos
-                    if input_track.ticks_per_quarter:
-                        score.ticks_per_quarter = input_track.ticks_per_quarter
-                    score.dump_midi(input_temp.name)
-                    score.dump_midi("./test1.mid")
+            score = Score()
+            score.tracks.append(input_track.track)
+            if input_track.tempos:
+                score.tempos = input_track.tempos
+            if input_track.ticks_per_quarter:
+                score.ticks_per_quarter = input_track.ticks_per_quarter
+            score.dump_midi(input_temp.name)
 
-                    # Load MIDI using MidiDict
-                    midi_dict = MidiDict.from_midi(input_temp.name)
-                    midi_dict.to_midi().save("./test2.mid")
-                    tokens = self.tokenizer.tokenize(midi_dict, add_eos_token=False, add_dim_token=False)
-                    token_ids = self.tokenizer._tokenizer.encode(tokens)
-                    prompt_input_ids = torch.tensor([token_ids], device=self.device)
+            # Load MIDI using MidiDict
+            midi_dict = MidiDict.from_midi(input_temp.name)
+            tokens = self.tokenizer.tokenize(
+                midi_dict, add_eos_token=False, add_dim_token=False
+            )
+            token_ids = self.tokenizer._tokenizer.encode(tokens)
+            try:
+                os.unlink(input_temp.name)
+            except OSError:
+                pass  # Ignore cleanup errors
 
-                    # Generate continuation
-                    continuation = self.model.generate(
-                        prompt_input_ids.to(self.device),
-                        max_length=512,
-                        do_sample=True,
-                        temperature=0.97,
-                        top_p=0.95,
-                        use_cache=True,
-                    )
-
-                    # Decode back into MIDI
-                    midi_dict_output = self.tokenizer.decode(continuation[0].tolist())
-                    midi_dict_output.to_midi().save(output_temp.name)
-                    midi_dict_output.to_midi().save("./test3.mid")
-
-                    # Load the generated MIDI back as Score and extract track and tempos
-                    output_score = Score.from_file(output_temp.name)
-
-                    # Create MidiTrack with track and timing information
-                    output_track = output_score.tracks[0] if output_score.tracks else TrackTick()
-                    output_tempos = output_score.tempos if output_score.tempos else None
-                    output_ticks_per_quarter = output_score.ticks_per_quarter if hasattr(output_score, 'ticks_per_quarter') else None
-
-                    midi_track = MidiTrack(
-                        track=output_track,
-                        tempos=output_tempos,
-                        ticks_per_quarter=output_ticks_per_quarter
-                    )
-
-                    return AriaBaseOutput(output_track=midi_track)
-
-                finally:
-                    # Clean up temporary files
-                    try:
-                        os.unlink(input_temp.name)
-                        os.unlink(output_temp.name)
-                    except OSError:
-                        pass  # Ignore cleanup errors
+            return torch.tensor([token_ids], device=self.device)
