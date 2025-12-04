@@ -6,8 +6,7 @@ import torch
 from ariautils.midi import MidiDict
 from transformers import AutoTokenizer
 from symusic import Score
-from symusic.core import TrackTick, TempoTick
-from pydantic import BaseModel
+from symusic.core import TrackTick
 
 from src.core.module import Module
 from src.core.modules.aria_base import MidiTrack
