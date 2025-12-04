@@ -33,7 +33,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [showResultDrawer, setShowResultDrawer] = useState(false);
   const [resultSample, setResultSample] = useState<Sample | null>(null);
-  const [workflowInputs, setWorkflowInputs] = useState<Array<{name: string, type: string, description?: string, required?: boolean}>>([]);
+  const [workflowInputs, setWorkflowInputs] = useState<Array<{name: string, type: string, required?: boolean, optional?: boolean}>>([]);
   const [workflowOutputs, setWorkflowOutputs] = useState<Array<{name: string, type: string}>>([]);
   const [inputValues, setInputValues] = useState<Record<string, any>>({});
 
@@ -50,7 +50,20 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     const analyzeWorkflow = async () => {
       if (workflow.isModule) {
         // For modules, use the existing inputs/outputs
-        setWorkflowInputs(workflow.inputs || []);
+        const processedInputs = (workflow.inputs || []).map(input => {
+          const rawType = typeof input === 'string' ? input : input.type || 'any';
+          const isOptional = rawType.startsWith('Optional[') && rawType.endsWith(']');
+          const displayType = isOptional ? rawType.slice(9, -1) : rawType;
+          
+          return {
+            name: typeof input === 'string' ? 'input' : input.name || 'input',
+            type: displayType,
+            required: !isOptional,
+            optional: isOptional
+          };
+        });
+        
+        setWorkflowInputs(processedInputs);
         setWorkflowOutputs(workflow.outputs || []);
         return;
       }
@@ -78,7 +91,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
           moduleMap.set(module.name, module);
         });
 
-        const inputs: Array<{name: string, type: string, description?: string, required?: boolean}> = [];
+        const inputs: Array<{name: string, type: string, required?: boolean, optional?: boolean}> = [];
         const outputs: Array<{name: string, type: string}> = [];
 
         // Analyze nodes and edges
@@ -93,11 +106,15 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
                   // Find the expected input type from the target module
                   const moduleDefinition = moduleMap.get(targetNode.type_);
                   if (moduleDefinition && moduleDefinition.inputs && moduleDefinition.inputs[edge.to_parameter]) {
+                    const rawType = moduleDefinition.inputs[edge.to_parameter];
+                    const isOptional = rawType.startsWith('Optional[') && rawType.endsWith(']');
+                    const displayType = isOptional ? rawType.slice(9, -1) : rawType;
+                    
                     inputs.push({
                       name: edge.from_parameter || 'input',
-                      type: moduleDefinition.inputs[edge.to_parameter],
-                      description: `Input parameter connected to ${targetNode.type_}.${edge.to_parameter}`,
-                      required: true
+                      type: displayType,
+                      required: !isOptional,
+                      optional: isOptional
                     });
                   }
                 }
@@ -107,8 +124,8 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
               inputs.push({
                 name: 'input',
                 type: 'any',
-                description: 'Unconnected input parameter',
-                required: true
+                required: true,
+                optional: false
               });
             }
           }
@@ -479,12 +496,12 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
                         Required
                       </Badge>
                     )}
+                    {input.optional && (
+                      <Badge variant="outline" className="text-xs">
+                        Optional
+                      </Badge>
+                    )}
                   </div>
-                  {input.description && (
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {input.description}
-                    </p>
-                  )}
 
                   {/* Render dynamic input field */}
                   <div className="mt-4">
