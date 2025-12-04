@@ -1,34 +1,15 @@
 import tempfile
 import os
 from typing import TypedDict
-from pathlib import Path
 
 import torch
 from ariautils.midi import MidiDict
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from symusic import Score
-from symusic.core import TrackTick, TempoTick
-from pydantic import BaseModel, Field
+from symusic.core import TrackTick
 
+from src.core.domain.midi_track import MidiTrack
 from src.core.module import Module
-
-
-class MidiTrack(BaseModel):
-    """
-    MIDI track with timing information.
-
-    Attributes:
-        track: The actual MIDI track containing notes and events
-        tempos: List of tempo changes throughout the track (optional)
-        ticks_per_quarter: MIDI timing resolution (optional)
-    """
-    track: TrackTick
-    tempos: list[TempoTick] | None = None
-    ticks_per_quarter: int | None = None
-
-    class Config:
-        # Allow arbitrary types (needed for TrackTick and TempoTick)
-        arbitrary_types_allowed = True
 
 
 class AriaBaseOutput(TypedDict):

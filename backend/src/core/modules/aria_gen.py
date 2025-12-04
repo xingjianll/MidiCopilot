@@ -1,7 +1,9 @@
 import torch
+from safetensors.torch import load_file
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 
 from src.core.modules.aria_base import AriaBase
+from src.utils import PROJECT_ROOT
 
 
 class AriaGen(AriaBase):
@@ -14,12 +16,9 @@ class AriaGen(AriaBase):
         self.config = AutoConfig.from_pretrained(
             "loubb/aria-medium-base", trust_remote_code=True
         )
-        checkpoint_path = ""
         self.model = AutoModelForCausalLM.from_config(self.config)
-        state_dict = torch.load(checkpoint_path, map_location=torch.device("cpu"))[
-            "state_dict"
-        ]
-        self.model.load_state_dict(state_dict)
+        state_dict = load_file(PROJECT_ROOT / 'checkpoints' / 'model-gen.safetensors')
+        self.model.load_state_dict(state_dict, strict=False)
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             "loubb/aria-medium-base",
