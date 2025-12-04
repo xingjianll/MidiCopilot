@@ -178,8 +178,33 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     }));
   };
 
-  const renderInputField = (input: {name: string, type: string, description?: string, required?: boolean}) => {
+  const renderInputField = (input: {name: string, type: string, required?: boolean, optional?: boolean}) => {
     const currentValue = inputValues[input.name];
+    
+    // Check if it's a Literal type
+    const literalMatch = input.type.match(/^Literal\[(.*)\]$/);
+    if (literalMatch) {
+      // Extract literal values: Literal['a', 'b', 'c'] -> ['a', 'b', 'c']
+      const literalValues = literalMatch[1]
+        .split(',')
+        .map(v => v.trim())
+        .map(v => v.replace(/^['"]|['"]$/g, '')); // Remove quotes
+      
+      return (
+        <select
+          value={currentValue || ''}
+          onChange={(e) => handleInputValueChange(input.name, e.target.value)}
+          className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md text-sm"
+        >
+          <option value="">Select a value...</option>
+          {literalValues.map(value => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+      );
+    }
 
     switch (input.type) {
       case 'str':
