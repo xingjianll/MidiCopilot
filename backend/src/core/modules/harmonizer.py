@@ -27,15 +27,23 @@ class Harmonizer(AriaBase):
         )
 
         # Load model
+        midiaria = MidiAria(self.tokenizer, None)
+        self.model = midiaria.model
+        self.model.to(self.device)
+
         checkpoint_path = PROJECT_ROOT / 'checkpoints' / 'aria-harmonization-epoch=00-val_loss=0.7306.ckpt'
-        self.model = MidiAria(self.tokenizer, None)
-        self.model.to_lora()
-        state_dict = torch.load(checkpoint_path, map_location=torch.device('cpu'))['state_dict']
-        self.model.load_state_dict(state_dict)
+        ckpt = torch.load(checkpoint_path, map_location=self.device)["state_dict"]
+        self.model.load_state_dict(ckpt, strict=False)
 
     @classmethod
     def description(cls) -> str:
         return "Generate harmony from melody"
+
+    def _post_process(self, i: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        prompt_input_ids = kwargs['prompt_input_ids']
+        prompt_len = prompt_input_ids.shape[1]
+        generated_tokens = i[0][prompt_len:]
+        return [generated_tokens]
 
     @override
     def _get_input_sequence_ids(self, input_track: Optional[MidiTrack]) -> torch.Tensor:
@@ -58,8 +66,4 @@ class Harmonizer(AriaBase):
             )
             token_ids = self.tokenizer._tokenizer.encode(tokens)
 
-        try:
-            os.unlink(input_temp.name)
-        except OSError:
-            pass
-        return torch.tensor([token_ids], device="cpu")
+        return torch.tensor([token_ids], device=self.device)

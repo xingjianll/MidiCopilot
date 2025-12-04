@@ -1,5 +1,4 @@
 import tempfile
-import os
 from typing import Any, override, Optional
 
 import torch
@@ -9,6 +8,7 @@ from symusic import Score
 
 from src.core.domain.midi_track import MidiTrack
 from src.core.modules.midi_seq2seq import MidiSeq2Seq
+from src.utils import PROJECT_ROOT
 
 
 class AriaBase(MidiSeq2Seq):
@@ -39,6 +39,10 @@ class AriaBase(MidiSeq2Seq):
         return self.model
 
     @override
+    def _set_model(self, model) -> None:
+        self.mode = model
+
+    @override
     def _get_tokenizer(self) -> Any:
         return self.tokenizer
 
@@ -49,9 +53,13 @@ class AriaBase(MidiSeq2Seq):
     @override
     def _get_input_sequence_ids(self, input_track: Optional[MidiTrack]) -> torch.Tensor:
         if input_track is None:
-            token_ids = self.tokenizer._tokenizer.encode([self.tokenizer._tokenizer.bos_tok])
-            return torch.tensor([token_ids], device=self.device)
-        with tempfile.NamedTemporaryFile(suffix=".mid", delete=False) as input_temp:
+            stub = MidiDict.from_midi(PROJECT_ROOT / "stub.mid")
+            tokens = self.tokenizer.tokenize(
+                stub, add_eos_token=False, add_dim_token=False
+            )
+            token_ids = self.tokenizer._tokenizer.encode(tokens)
+            return torch.tensor([token_ids[:2]], device=self.device)
+        with tempfile.NamedTemporaryFile(suffix=".mid", delete=True) as input_temp:
             score = Score()
             score.tracks.append(input_track.track)
             if input_track.tempos:
@@ -66,9 +74,5 @@ class AriaBase(MidiSeq2Seq):
                 midi_dict, add_eos_token=False, add_dim_token=False
             )
             token_ids = self.tokenizer._tokenizer.encode(tokens)
-            try:
-                os.unlink(input_temp.name)
-            except OSError:
-                pass  # Ignore cleanup errors
 
             return torch.tensor([token_ids], device=self.device)

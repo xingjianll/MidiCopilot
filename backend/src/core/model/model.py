@@ -179,8 +179,7 @@ class MidiAria(pl.LightningModule):
         # self.save_hyperparameters()
 
         self.tokenizer = tokenizer
-        self.config = AutoConfig.from_pretrained("loubb/aria-medium-base", trust_remote_code=True)
-        self.model = AutoModelForCausalLM.from_config(self.config, trust_remote_code=True)
+        self.model = AutoModelForCausalLM.from_pretrained("loubb/aria-medium-base", trust_remote_code=True)
         self.lr = lr
         self.warmup_steps = warmup_steps
         self.dataloader = dataloader
@@ -238,6 +237,10 @@ class MidiAria(pl.LightningModule):
 
         self.load_state_dict(state_dict, strict=False)
 
+class MidiAria2(pl.LightningModule):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
     def to_lora(self):
         # FREEZE WEIGHTS
         for param in self.model.parameters():
