@@ -83,13 +83,11 @@ class MidiGPT2(pl.LightningModule):
         return val_loss
 
     def configure_optimizers(self):
-        from src.train import EPOCHS
-
         steps_per_epoch = len(self.dataloader)
         optimizer, scheduler = _get_optim(
             lr=self.lr,
             model=self,
-            num_epochs=EPOCHS,
+            num_epochs=1,
             steps_per_epoch=steps_per_epoch,
             warmup=self.warmup_steps,
             end_ratio=0.1,
@@ -110,7 +108,7 @@ class MidiGPT2(pl.LightningModule):
             model_pos_emb.data[:old_pos_emb.shape[0]] = old_pos_emb
             state_dict["model.transformer.wpe.weight"] = model_pos_emb
         else:
-            print(f"Loading position embeddings without resizing.")
+            print("Loading position embeddings without resizing.")
 
         self.load_state_dict(state_dict, strict=False)
 
@@ -154,13 +152,11 @@ class MidiQwen(pl.LightningModule):
         return val_loss
 
     def configure_optimizers(self):
-        from src.train import EPOCHS
-
         steps_per_epoch = len(self.dataloader)
         optimizer, scheduler = _get_optim(
             lr=self.lr,
             model=self,
-            num_epochs=EPOCHS,
+            num_epochs=1,
             steps_per_epoch=steps_per_epoch,
             warmup=self.warmup_steps,
             end_ratio=0.1,
@@ -174,10 +170,6 @@ class MidiQwen(pl.LightningModule):
         state_dict = checkpoint["state_dict"]
 
         self.load_state_dict(state_dict, strict=False)
-
-
-import lightning as pl
-import torch
 
 
 
@@ -216,13 +208,11 @@ class MidiAria(pl.LightningModule):
         return val_loss
 
     def configure_optimizers(self):
-        from src.train import EPOCHS
-
         steps_per_epoch = len(self.dataloader)
         optimizer, scheduler = _get_optim(
             lr=self.lr,
             model=self,
-            num_epochs=EPOCHS,
+            num_epochs=1,
             steps_per_epoch=steps_per_epoch,
             warmup=self.warmup_steps,
             end_ratio=0.1,

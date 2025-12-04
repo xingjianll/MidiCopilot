@@ -152,21 +152,16 @@ export const SamplesPage: React.FC = () => {
         method: 'DELETE',
       });
 
-      const data = await response.json();
-      
-      if (data.success) {
+      if (response.ok) {
         // Refresh samples list
         await fetchSamples();
         // Clear selection if deleted sample was selected
         if (selectedSample?.id === sampleId) {
           setSelectedSample(null);
         }
-      } else {
-        alert('Failed to delete sample: ' + (data.error || data.message));
       }
     } catch (error) {
       console.error('Error deleting sample:', error);
-      alert('Failed to delete sample');
     }
   };
 
@@ -257,6 +252,15 @@ export const SamplesPage: React.FC = () => {
             )}
           </div>
         </div>
+        
+        {/* Hidden file input for column view */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".mid,.midi,.wav,.mp3,.flac,.ogg"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
       </div>
     );
   }

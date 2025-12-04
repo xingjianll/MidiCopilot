@@ -1,13 +1,9 @@
-import mido
+import pypm
 
-def list_midi_ports():
-    print("Available Input Ports:")
-    for port in mido.get_input_names():
-        print(f"  - {port}")
+pypm.Initialize()
 
-    print("\nAvailable Output Ports:")
-    for port in mido.get_output_names():
-        print(f"  - {port}")
+for i in range(pypm.CountDevices()):
+    info = pypm.GetDeviceInfo(i)
+    print(i, info)
 
-if __name__ == "__main__":
-    list_midi_ports()
+pypm.Terminate()

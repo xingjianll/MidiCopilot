@@ -101,7 +101,7 @@ export const RunsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <>
+      <div className="flex flex-col h-full">
         <PageHeader
           title="Runs"
           actions={<ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />}
@@ -112,13 +112,13 @@ export const RunsPage: React.FC = () => {
             <span>Loading runs...</span>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <>
+      <div className="flex flex-col h-full">
         <PageHeader
           title="Runs"
           actions={<ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />}
@@ -131,18 +131,18 @@ export const RunsPage: React.FC = () => {
             </Button>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   if (viewMode === 'column') {
     return (
-      <>
+      <div className="flex flex-col h-full">
         <PageHeader
           title="Runs"
           actions={<ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />}
         />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden min-h-0">
           {/* Column view: Split screen */}
           <div className="w-96 flex flex-col border-r">
             <div className="flex-1 overflow-auto">
@@ -176,7 +176,7 @@ export const RunsPage: React.FC = () => {
             )}
           </div>
         </div>
-      </>
+      </div>
     );
   }
 

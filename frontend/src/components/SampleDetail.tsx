@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Music, Volume2, Clock, HardDrive, FileIcon, Play, Download, ChevronDown, Loader2 } from 'lucide-react';
+import { Music, Volume2, Clock, HardDrive, FileIcon, Play, Download, ChevronDown, Loader2, Square } from 'lucide-react';
 import { Sample } from '../types';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -50,13 +50,25 @@ export const SampleDetail: React.FC<SampleDetailProps> = ({ sample }) => {
     fetchFileSize();
   }, [sample.id]);
 
+  // Fetch MIDI ports when component loads (for MIDI samples only)
+  useEffect(() => {
+    if (sample.type === 'midi') {
+      fetchMidiPorts();
+    }
+  }, [sample.type]);
+
   // Fetch MIDI output ports
   const fetchMidiPorts = async () => {
     setLoadingPorts(true);
     try {
-      const response = await fetch('http://localhost:8000/port/output');
+      const response = await fetch('http://127.0.0.1:8001/ports');
       if (response.ok) {
-        const ports = await response.json();
+        const data = await response.json();
+        // Convert output_ports array to the expected format
+        const ports = data.output_ports.map((portName: string) => ({
+          name: portName,
+          type: 'output'
+        }));
         setMidiPorts(ports);
       } else {
         console.error('Failed to fetch MIDI ports');
@@ -74,24 +86,55 @@ export const SampleDetail: React.FC<SampleDetailProps> = ({ sample }) => {
   const handlePlaySample = async (portName: string) => {
     setPlaying(true);
     try {
-      const response = await fetch(`http://localhost:8000/sample/${sample.id}/play`, {
+      // First get the sample details to get the file path
+      const sampleResponse = await fetch(`http://localhost:8000/sample/${sample.id}`);
+      if (!sampleResponse.ok) {
+        throw new Error('Failed to get sample details');
+      }
+      const sampleData = await sampleResponse.json();
+
+      // Now play the MIDI file using the new Flask endpoint
+      const response = await fetch('http://127.0.0.1:8001/play', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ port: portName }),
+        body: JSON.stringify({ 
+          midi_path: sampleData.path,
+          port_name: portName 
+        }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Sample played successfully:', result.message);
+        console.log('Sample played successfully:', result);
+        // Keep playing state as true since music is playing asynchronously
       } else {
         const error = await response.json();
-        alert(`Failed to play sample: ${error.detail}`);
+        alert(`Failed to play sample: ${error.error}`);
+        setPlaying(false); // Only reset on error
       }
     } catch (error) {
       console.error('Error playing sample:', error);
       alert('Failed to play sample');
+      setPlaying(false); // Only reset on error
+    }
+  };
+
+  // Stop playing MIDI
+  const handleStopSample = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8001/stop', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        console.log('Playback stopped successfully');
+      } else {
+        console.error('Failed to stop playback');
+      }
+    } catch (error) {
+      console.error('Error stopping playback:', error);
     } finally {
       setPlaying(false);
     }
@@ -151,51 +194,51 @@ export const SampleDetail: React.FC<SampleDetailProps> = ({ sample }) => {
 
       <div className="flex gap-3">
         {sample.type === 'midi' ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                size="lg" 
-                disabled={playing}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (midiPorts.length === 0) {
-                    fetchMidiPorts();
-                  }
-                }}
-              >
-                {playing ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
+          playing ? (
+            <Button 
+              size="lg" 
+              onClick={handleStopSample}
+              variant="destructive"
+            >
+              <Square className="h-4 w-4 mr-2" />
+              Stop
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  size="lg" 
+                  disabled={loadingPorts}
+                >
                   <Play className="h-4 w-4 mr-2" />
-                )}
-                {playing ? 'Playing...' : 'Play'}
-                <ChevronDown className="h-4 w-4 ml-2" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64">
-              {loadingPorts ? (
-                <DropdownMenuItem disabled>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Loading MIDI ports...
-                </DropdownMenuItem>
-              ) : midiPorts.length === 0 ? (
-                <DropdownMenuItem disabled>
-                  No MIDI output ports available
-                </DropdownMenuItem>
-              ) : (
-                midiPorts.map((port) => (
-                  <DropdownMenuItem
-                    key={port.name}
-                    onClick={() => handlePlaySample(port.name)}
-                    disabled={playing}
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    {port.name}
+                  Play
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                {loadingPorts ? (
+                  <DropdownMenuItem disabled>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Loading MIDI ports...
                   </DropdownMenuItem>
-                ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                ) : midiPorts.length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    No MIDI output ports available
+                  </DropdownMenuItem>
+                ) : (
+                  midiPorts.map((port) => (
+                    <DropdownMenuItem
+                      key={port.name}
+                      onClick={() => handlePlaySample(port.name)}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {port.name}
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
         ) : (
           <Button size="lg" disabled>
             <Play className="h-4 w-4 mr-2" />

@@ -75,7 +75,7 @@ class AriaHarmonization(Module[MidiTrack, AriaHarmonizationOutput]):
                     # Generate harmonization
                     continuation = self.model.model.generate(
                         prompt_input_ids.to('cpu'),
-                        max_length=256,
+                        max_length=2048,
                         do_sample=True,
                         temperature=0.97,
                         top_p=0.95,
