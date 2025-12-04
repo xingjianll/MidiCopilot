@@ -18,7 +18,7 @@ class AriaHarmonizationOutput(TypedDict):
     output_track: MidiTrack
 
 
-class AriaHarmonization(Module[MidiTrack, AriaHarmonizationOutput]):
+class AriaHarmonization(Module[[MidiTrack], AriaHarmonizationOutput]):
     def __init__(self):
         # Set up device
         self.device = "mps" if torch.backends.mps.is_available() else "cpu"

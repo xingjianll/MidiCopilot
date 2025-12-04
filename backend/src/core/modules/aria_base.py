@@ -35,7 +35,7 @@ class AriaBaseOutput(TypedDict):
     output_track: MidiTrack
 
 
-class AriaBase(Module[MidiTrack, AriaBaseOutput]):
+class AriaBase(Module[[MidiTrack], AriaBaseOutput]):
     def __init__(self):
         # Set up device
         self.device = "mps" if torch.backends.mps.is_available() else "cpu"

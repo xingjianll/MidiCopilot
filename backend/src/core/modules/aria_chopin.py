@@ -17,7 +17,7 @@ class AriaChopinOutput(TypedDict):
     output_track: MidiTrack
 
 
-class AriaChopin(Module[MidiTrack, AriaChopinOutput]):
+class AriaChopin(Module[[MidiTrack], AriaChopinOutput]):
     def __init__(self):
         # Set up device
         self.device = "mps" if torch.backends.mps.is_available() else "cpu"
