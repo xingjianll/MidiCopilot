@@ -34,7 +34,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
   const [showResultDrawer, setShowResultDrawer] = useState(false);
   const [resultSample, setResultSample] = useState<Sample | null>(null);
   const [workflowInputs, setWorkflowInputs] = useState<Array<{name: string, type: string, description?: string, required?: boolean}>>([]);
-  const [workflowOutputs, setWorkflowOutputs] = useState<Array<{name: string, type: string, description?: string}>>([]);
+  const [workflowOutputs, setWorkflowOutputs] = useState<Array<{name: string, type: string}>>([]);
   const [inputValues, setInputValues] = useState<Record<string, any>>({});
 
   const formatDate = (dateString: string) => {
@@ -62,6 +62,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
           throw new Error(`Failed to fetch workflow: ${response.status}`);
         }
         const workflowData = await response.json();
+        console.log('Workflow API response:', workflowData);
 
         // Fetch module definitions to get type information
         const modulesResponse = await fetch('http://localhost:8000/module/');
@@ -69,6 +70,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
           throw new Error('Failed to fetch modules');
         }
         const modules = await modulesResponse.json();
+        console.log('Modules API response:', modules);
 
         // Create a map of module names to their definitions
         const moduleMap = new Map();
@@ -77,7 +79,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
         });
 
         const inputs: Array<{name: string, type: string, description?: string, required?: boolean}> = [];
-        const outputs: Array<{name: string, type: string, description?: string}> = [];
+        const outputs: Array<{name: string, type: string}> = [];
 
         // Analyze nodes and edges
         workflowData.nodes.forEach((node: any) => {
@@ -121,11 +123,11 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
                   // Find the output type from the source module
                   const moduleDefinition = moduleMap.get(sourceNode.type_);
                   if (moduleDefinition && moduleDefinition.outputs && moduleDefinition.outputs[edge.from_parameter]) {
-                    outputs.push({
+                    const outputEntry = {
                       name: edge.to_parameter || 'output',
-                      type: moduleDefinition.outputs[edge.from_parameter],
-                      description: `Output from ${sourceNode.type_}.${edge.from_parameter}`
-                    });
+                      type: moduleDefinition.outputs[edge.from_parameter]
+                    };
+                    outputs.push(outputEntry);
                   }
                 }
               });
@@ -133,8 +135,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
               // No connections, use default
               outputs.push({
                 name: 'output',
-                type: 'any',
-                description: 'Unconnected output parameter'
+                type: 'any'
               });
             }
           }
@@ -520,11 +521,6 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
                       {output.type}
                     </Badge>
                   </div>
-                  {output.description && (
-                    <p className="text-sm text-muted-foreground">
-                      {output.description}
-                    </p>
-                  )}
                 </CardContent>
               </Card>
             ))
