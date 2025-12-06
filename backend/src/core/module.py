@@ -31,7 +31,6 @@ class Module[**P, O: TypedDict](Runnable[P, O]):
     def registered_subclasses(cls) -> list[ModuleVo]:
         """Return all non-abstract subclasses with their type signatures (as strings)."""
         from src.core.modules.aria_base import AriaBase
-        from src.core.modules.aria_chopin import AriaChopin
         from src.core.modules.harmonizer import Harmonizer
         from src.core.modules.aria_gen import AriaGen
         from src.core.modules.infill import Infill

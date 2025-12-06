@@ -1,5 +1,5 @@
 import tempfile
-from typing import Any, override, Optional
+from typing import Any, override, Optional, Literal
 
 import torch
 from ariautils.midi import MidiDict
@@ -7,12 +7,14 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from symusic import Score
 
 from src.core.domain.midi_track import MidiTrack
-from src.core.modules.midi_seq2seq import MidiSeq2Seq
+from src.core.module import Module
+from src.core.modules.midi_seq2seq import MidiSeq2SeqMixin, MidiTrackOutput, MidiPostProcessor
 from src.utils import PROJECT_ROOT
 
 
-class AriaBase(MidiSeq2Seq):
+class AriaBase(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin):
     def __init__(self):
+        self.peft = False
         # Set up device
         self.device = "mps" if torch.backends.mps.is_available() else "cpu"
         torch.Tensor.cuda = lambda self, *args, **kwargs: self.to(self.device)
@@ -51,6 +53,9 @@ class AriaBase(MidiSeq2Seq):
         return self.device
 
     @override
+    def _get_midi_postprocessor(self) -> MidiPostProcessor:
+        return MidiPostProcessor()
+
     def _get_input_sequence_ids(self, input_track: Optional[MidiTrack]) -> torch.Tensor:
         if input_track is None:
             stub = MidiDict.from_midi(PROJECT_ROOT / "stub.mid")
@@ -76,3 +81,11 @@ class AriaBase(MidiSeq2Seq):
             token_ids = self.tokenizer._tokenizer.encode(tokens)
 
             return torch.tensor([token_ids], device=self.device)
+
+    def run(self,
+            input_track: Optional[MidiTrack] = None,
+            max_length: Optional[int] = None,
+            style: Optional[Literal['pop', 'chopin']] = None
+            ) -> MidiTrackOutput:
+        prompt_input_ids = self._get_input_sequence_ids(input_track)
+        return self._run(prompt_input_ids, max_length, style)

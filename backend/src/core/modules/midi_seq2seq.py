@@ -3,24 +3,25 @@ from abc import abstractmethod
 from typing import TypedDict, Any, Optional, Literal
 
 import torch
+from peft import PeftModel
 from symusic import Score
 from symusic.core import TrackTick
 
 from src.core.domain.midi_track import MidiTrack
 from src.core.model.model import MidiAria2
 from src.core.module import Module
-from src.utils import to_lora, PROJECT_ROOT
+from src.utils import PROJECT_ROOT, ForceTokenProcessor
 
 
 class MidiTrackOutput(TypedDict):
     output_track: MidiTrack
 
 
-class MidiSeq2Seq(Module[[Optional[MidiTrack]], MidiTrackOutput]):
+class MidiPostProcessor:
+    def post_process(self, i: torch.Tensor) -> torch.Tensor:
+        return i
 
-    @abstractmethod
-    def _get_input_sequence_ids(self, track: Optional[MidiTrack]) -> torch.Tensor:
-        raise NotImplementedError
+class MidiSeq2SeqMixin:
 
     @abstractmethod
     def _get_model(self) -> Any:
@@ -38,11 +39,12 @@ class MidiSeq2Seq(Module[[Optional[MidiTrack]], MidiTrackOutput]):
     def _get_device(self) -> str:
         raise NotImplementedError
 
-    def _post_process(self, i: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        return i
+    @abstractmethod
+    def _get_midi_postprocessor(self) -> MidiPostProcessor:
+        raise NotImplementedError
 
-    def run(self,
-            input_track: Optional[MidiTrack] = None,
+    def _run(self,
+            input_ids: torch.Tensor,
             max_length: Optional[int] = None,
             style: Optional[Literal['pop', 'chopin']] = None
             ) -> MidiTrackOutput:
@@ -55,34 +57,51 @@ class MidiSeq2Seq(Module[[Optional[MidiTrack]], MidiTrackOutput]):
         Returns:
             AriaBaseOutput containing the generated MidiTrack
         """
+        if not max_length:
+            max_length = 256
 
         if style is not None:
-            model = MidiAria2(self._get_model())
-            model.to_lora()
             if style == 'chopin':
                 p = PROJECT_ROOT / "checkpoints" / "chopin-epoch=06-val_loss=2.0712.ckpt"
             elif style == 'pop':
                 p = PROJECT_ROOT / "checkpoints" / "pop-epoch=03-val_loss=1.2997.ckpt"
 
-            ckpt = torch.load(p, map_location="cpu")["state_dict"]
-            ckpt = {k: v for k, v in ckpt.items() if "lora_" in k}
-            model.load_state_dict(ckpt, strict=False)
-            self._set_model(model.model)
+            if not self.peft:
+                model = MidiAria2(self._get_model())
+                model.to_lora()
+                ckpt = torch.load(p, map_location="cpu")["state_dict"]
+                # ckpt = {k: v for k, v in ckpt.items() if "lora_" in k}
+                model.load_state_dict(ckpt)
+                self._set_model(model.model)
+            else:
+                model = self._get_model()
+                model.load_adapter(PROJECT_ROOT / 'checkpoints' / 'lora', adapter_name="lora2")
+                model.add_weighted_adapter(
+                    adapters=["default", "lora2"],
+                    weights=[0.5, 0.5],
+                    adapter_name="merged",
+                    combination_type="linear",
+                )
+                model.set_adapter("merged")
 
-        prompt_input_ids = self._get_input_sequence_ids(input_track)
-        if not max_length:
-            max_length = 256
+
+        dim_tok = self._get_tokenizer()._tokenizer.dim_tok
+        dim_id = self._get_tokenizer()._convert_token_to_id(dim_tok)
+        processor = ForceTokenProcessor(dim_id, step=max_length, tokenizer=self._get_tokenizer()._tokenizer)
+
         with tempfile.NamedTemporaryFile(suffix=".mid", delete=True) as output_temp:
             # Generate continuation
             continuation = self._get_model().generate(
-                prompt_input_ids.to(self._get_device()),
-                max_length=len(prompt_input_ids[0])+max_length,
+                input_ids.to(self._get_device()),
+                max_length=len(input_ids[0])+max_length+200,
                 do_sample=True,
                 temperature=0.97,
                 top_p=0.95,
                 use_cache=True,
+                logits_processor=[processor]
             )
-            continuation = self._post_process(continuation, prompt_input_ids=prompt_input_ids)
+            pp = self._get_midi_postprocessor()
+            continuation = pp.post_process(continuation)
 
             # Decode back into MIDI
             midi_dict_output = self._get_tokenizer().decode(continuation[0].tolist())

@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import Type
 
+import torch
 from peft import LoraConfig, TaskType, get_peft_model
+from transformers import LogitsProcessor
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -78,3 +80,55 @@ def to_lora(self):
         ]
     )
     return get_peft_model(self.model, config)
+
+
+class ForceTokenProcessor(LogitsProcessor):
+    def __init__(self, token_id, step, tokenizer):
+        """
+        token_id : ID of <D>
+        step     : earliest possible step where <D> is allowed
+        tokenizer: tokenizer giving id_to_tok mapping
+        """
+        self.token_id = token_id
+        self.step = step
+        self.tokenizer = tokenizer
+
+        # Once <D> has been inserted, we turn the processor off
+        self.inserted = False
+
+    def is_valid_position(self, last_tok):
+        """
+        Based on AbsTokenizer rules, <D> is invalid after:
+            - ("onset", x)
+            - ("piano",  x)
+        Because that would split a note/drum/pedal event.
+        """
+        if isinstance(last_tok, tuple):
+            if last_tok[0] in ("onset", "piano"):
+                return False  # cannot insert <D> here
+        return True  # all other token types are safe
+
+    def __call__(self, input_ids, scores):
+        # If already inserted, do nothing
+        if self.inserted:
+            return scores
+
+        current_step = input_ids.shape[1] - 1
+
+        # Do nothing before earliest allowed position
+        if current_step < self.step:
+            return scores
+
+        # Decode last token
+        last_id = int(input_ids[0, -1])
+        last_tok = self.tokenizer.id_to_tok[last_id]
+
+        if not self.is_valid_position(last_tok):
+            return scores
+
+        forced = torch.full_like(scores, -float("inf"))
+        forced[:, self.token_id] = 0
+
+        self.inserted = True
+        print("Successfully forced D")
+        return forced

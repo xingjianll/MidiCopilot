@@ -237,6 +237,29 @@ class MidiAria(pl.LightningModule):
 
         self.load_state_dict(state_dict, strict=False)
 
+    def to_lora(self):
+        # FREEZE WEIGHTS
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        # LoRa
+        config = LoraConfig(
+            r=32,
+            lora_alpha=64,
+            lora_dropout=0.05,
+            bias="none",
+            task_type=TaskType.CAUSAL_LM,
+            target_modules = [
+                "mixed_qkv",
+                "att_proj_linear",
+                "ff_gate_proj",
+                "ff_up_proj",
+                "ff_down_proj"
+            ]
+        )
+        self.model = get_peft_model(self.model, config)
+
+
 class MidiAria2(pl.LightningModule):
     def __init__(self, model):
         super().__init__()
