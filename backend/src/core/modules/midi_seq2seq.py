@@ -1,6 +1,7 @@
 import tempfile
 from abc import abstractmethod
 from typing import TypedDict, Any, Optional, Literal
+import asyncio
 
 import torch
 from peft import PeftModel
@@ -21,7 +22,33 @@ class MidiPostProcessor:
     def post_process(self, i: torch.Tensor) -> torch.Tensor:
         return i
 
+class ProgressCallback:
+    """Callback for tracking generation progress"""
+    def __init__(self, run_id: int, websocket_manager=None):
+        self.run_id = run_id
+        self.websocket_manager = websocket_manager
+        self.current_tokens = 0
+        self.max_tokens = 0
+        
+    def set_max_tokens(self, max_tokens: int):
+        self.max_tokens = max_tokens
+        
+    async def update_progress(self, current: int):
+        self.current_tokens = current
+        if self.websocket_manager and self.max_tokens > 0:
+            percentage = min((current / self.max_tokens) * 100, 100)
+            await self.websocket_manager.notify_run_progress(
+                self.run_id, current, self.max_tokens, percentage
+            )
+
+
 class MidiSeq2SeqMixin:
+
+    def __init__(self):
+        self.progress_callback = None
+
+    def set_progress_callback(self, callback: ProgressCallback):
+        self.progress_callback = callback
 
     @abstractmethod
     def _get_model(self) -> Any:
@@ -43,7 +70,7 @@ class MidiSeq2SeqMixin:
     def _get_midi_postprocessor(self) -> MidiPostProcessor:
         raise NotImplementedError
 
-    def _run(self,
+    async def _run(self,
             input_ids: torch.Tensor,
             max_length: Optional[int] = None,
             style: Optional[Literal['pop', 'chopin']] = None
@@ -87,15 +114,15 @@ class MidiSeq2SeqMixin:
         processor = ForceTokenProcessor(dim_id, step=max_length, tokenizer=self._get_tokenizer()._tokenizer)
 
         with tempfile.NamedTemporaryFile(suffix=".mid", delete=True) as output_temp:
-            # Generate continuation
-            continuation = self._get_model().generate(
+            # Generate continuation with progress tracking
+            total_length = len(input_ids[0]) + max_length + 200
+            if self.progress_callback:
+                self.progress_callback.set_max_tokens(max_length + 200)
+                
+            continuation = await self._generate_with_progress(
                 input_ids.to(self._get_device()),
-                max_length=len(input_ids[0])+max_length+200,
-                do_sample=True,
-                temperature=0.97,
-                top_p=0.95,
-                use_cache=True,
-                logits_processor=[processor]
+                total_length,
+                processor
             )
             pp = self._get_midi_postprocessor()
             continuation = pp.post_process(continuation)
@@ -117,3 +144,67 @@ class MidiSeq2SeqMixin:
             )
 
             return MidiTrackOutput(output_track=midi_track)
+
+    async def _generate_with_progress(self, input_ids: torch.Tensor, max_length: int, processor) -> torch.Tensor:
+        """Generate with progress tracking"""
+        model = self._get_model()
+        
+        # For now, simulate progress with the original generate call
+        # In a real implementation, you'd need to use a streaming approach
+        # or implement token-by-token generation
+        
+        if self.progress_callback:
+            # Start progress tracking
+            await self.progress_callback.update_progress(0)
+            
+            # Simulate progress updates during generation
+            # Since we can't easily hook into the transformer's generate method,
+            # we'll simulate progress with time-based updates
+            import asyncio
+            import time
+            
+            start_time = time.time()
+            
+            # Run generation in a separate thread to avoid blocking
+            def run_generation():
+                return model.generate(
+                    input_ids,
+                    max_length=max_length,
+                    do_sample=True,
+                    temperature=0.97,
+                    top_p=0.95,
+                    use_cache=True,
+                    logits_processor=[processor]
+                )
+            
+            # Start generation in background
+            loop = asyncio.get_event_loop()
+            generation_task = loop.run_in_executor(None, run_generation)
+            
+            # Simulate progress updates while generation is running
+            tokens_generated = 0
+            target_tokens = max_length - len(input_ids[0])
+            
+            while not generation_task.done():
+                await asyncio.sleep(0.5)  # Update every 500ms
+                elapsed = time.time() - start_time
+                # Estimate progress based on elapsed time (rough approximation)
+                estimated_progress = min(elapsed / (target_tokens * 0.1), 1.0)  # ~0.1s per token estimate
+                tokens_generated = int(estimated_progress * target_tokens)
+                await self.progress_callback.update_progress(tokens_generated)
+            
+            # Final progress update
+            await self.progress_callback.update_progress(target_tokens)
+            
+            return await generation_task
+        else:
+            # No progress tracking, just generate normally
+            return model.generate(
+                input_ids,
+                max_length=max_length,
+                do_sample=True,
+                temperature=0.97,
+                top_p=0.95,
+                use_cache=True,
+                logits_processor=[processor]
+            )

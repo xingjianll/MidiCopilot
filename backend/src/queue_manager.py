@@ -82,12 +82,13 @@ class RunQueue:
             # Import here to avoid circular imports
             from src.api.run.service import execute_run_internal
             
-            # Execute the run
+            # Execute the run with progress tracking
             result = await execute_run_internal(
                 run_id=queued_run.run_id,
                 workflow_id=queued_run.workflow_id,
                 module_name=queued_run.module_name,
-                inputs=queued_run.inputs
+                inputs=queued_run.inputs,
+                websocket_manager=self.websocket_manager
             )
             
             # Update status

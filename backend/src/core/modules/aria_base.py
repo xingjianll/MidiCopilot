@@ -14,6 +14,7 @@ from src.utils import PROJECT_ROOT
 
 class AriaBase(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin):
     def __init__(self):
+        super().__init__()
         self.peft = False
         # Set up device
         self.device = "cpu" if torch.backends.mps.is_available() else "cpu"
@@ -77,10 +78,10 @@ class AriaBase(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin)
 
             return torch.tensor([token_ids], device=self.device)
 
-    def run(self,
+    async def run(self,
             input_track: Optional[MidiTrack] = None,
             max_length: Optional[int] = None,
             style: Optional[Literal['pop', 'chopin']] = None
             ) -> MidiTrackOutput:
         prompt_input_ids = self._get_input_sequence_ids(input_track)
-        return self._run(prompt_input_ids, max_length, style)
+        return await self._run(prompt_input_ids, max_length, style)

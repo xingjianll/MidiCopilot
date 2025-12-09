@@ -62,6 +62,19 @@ class WebSocketManager:
         }
         await self.send_to_all(message)
         logger.info(f"Notified run failure: {run_id}")
+    
+    async def notify_run_progress(self, run_id: int, current: int, total: int, percentage: float):
+        """Notify all clients about run progress"""
+        message = {
+            "type": "run_progress",
+            "run_id": run_id,
+            "current": current,
+            "total": total,
+            "percentage": percentage,
+            "message": f"Run {run_id} progress: {current}/{total} tokens ({percentage:.1f}%)"
+        }
+        await self.send_to_all(message)
+        logger.debug(f"Notified run progress: {run_id} - {percentage:.1f}%")
 
 
 # Global WebSocket manager instance

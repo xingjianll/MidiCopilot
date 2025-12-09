@@ -82,11 +82,11 @@ class Harmonizer(AriaBase):
 
         return torch.tensor([token_ids], device=self.device)
 
-    def run(self,
+    async def run(self,
             input_track: Optional[MidiTrack] = None,
             max_length: Optional[int] = None,
             style: Optional[Literal['pop', 'chopin']] = None
             ) -> MidiTrackOutput:
         prompt_input_ids = self._get_input_sequence_ids(input_track)
         self.midi_processor = HarmonizerPostProcessor(prompt_input_ids.shape[1])
-        return self._run(prompt_input_ids, max_length, style)
+        return await self._run(prompt_input_ids, max_length, style)

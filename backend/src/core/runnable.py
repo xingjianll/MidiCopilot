@@ -5,7 +5,7 @@ from typing import TypedDict, Type, get_type_hints, Any
 
 class Runnable[**P, O: TypedDict](ABC):
     @abstractmethod
-    def run(self, args: P.args, kwargs: P.kwargs) -> O:
+    async def run(self, args: P.args, kwargs: P.kwargs) -> O:
         ...
 
     @classmethod

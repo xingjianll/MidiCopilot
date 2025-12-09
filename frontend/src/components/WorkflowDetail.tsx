@@ -12,6 +12,7 @@ import { MidiFileUpload } from './MidiFileUpload';
 import { BottomDrawer } from './BottomDrawer';
 import { SampleDetail } from './SampleDetail';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useNotifications } from '../context/NotificationContext';
 
 interface WorkflowDetailProps {
   workflow: Workflow;
@@ -21,26 +22,16 @@ interface WorkflowDetailProps {
 
 export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClose, onEdit }) => {
   const [selectedFile, setSelectedFile] = useState<File | { sampleId: string; name: string } | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [pendingRunId, setPendingRunId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{
-    current: number;
-    total: number;
-    percentage: number;
-    generated: number;
-    promptLength: number;
-  } | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string>('');
   const [showResultDrawer, setShowResultDrawer] = useState(false);
   const [resultSample, setResultSample] = useState<Sample | null>(null);
   const [workflowInputs, setWorkflowInputs] = useState<Array<{name: string, type: string, required?: boolean, optional?: boolean}>>([]);
   const [workflowOutputs, setWorkflowOutputs] = useState<Array<{name: string, type: string}>>([]);
   const [inputValues, setInputValues] = useState<Record<string, any>>({});
   
-  // WebSocket connection for run notifications
-  const { lastMessage } = useWebSocket('ws://localhost:8000/ws');
+  const { addNotification } = useNotifications();
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -176,19 +167,6 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     analyzeWorkflow();
   }, [workflow]);
 
-  // Handle WebSocket messages for run completion
-  useEffect(() => {
-    if (lastMessage && pendingRunId) {
-      if (
-        (lastMessage.type === 'run_complete' || lastMessage.type === 'run_failed') &&
-        lastMessage.run_id === pendingRunId
-      ) {
-        // Clear pending state when our run completes or fails
-        setIsRunning(false);
-        setPendingRunId(null);
-      }
-    }
-  }, [lastMessage, pendingRunId]);
 
   const handleInputValueChange = (inputName: string, value: any) => {
     setInputValues(prev => ({
@@ -319,12 +297,9 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
       return;
     }
 
-    setIsRunning(true);
+    setIsSubmitting(true);
     setError(null);
     setResult(null);
-    setProgress(null);
-    setStatusMessage('');
-    setPendingRunId(null);
 
     try {
       // Prepare run request based on workflow type
@@ -397,17 +372,21 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
       const runData = await response.json();
       console.log('Run created:', runData);
 
-      // Set pending run ID to track completion via WebSocket
-      setPendingRunId(runData.id);
+      // Reset submitting state and show success toast
+      setIsSubmitting(false);
       
-      // Keep isRunning true until we get WebSocket notification
-      setStatusMessage('Run queued for processing...');
+      // Show success toast
+      addNotification({
+        id: Date.now().toString(),
+        type: 'success',
+        title: 'Run Queued',
+        message: `${workflow.name} has been added to the queue (Run #${runData.id})`
+      });
 
     } catch (err: any) {
       console.error('Error creating run:', err);
       setError(err.message || 'Failed to create run');
-      setIsRunning(false);
-      setPendingRunId(null);
+      setIsSubmitting(false);
     }
   };
 
@@ -603,14 +582,14 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
       <div className="flex gap-4">
         <Button
           onClick={handleRun}
-          disabled={isRunning || workflowInputs.some(input => input.required && !inputValues[input.name])}
+          disabled={isSubmitting || workflowInputs.some(input => input.required && !inputValues[input.name])}
           className="flex-1"
           size="lg"
         >
-          {isRunning ? (
+          {isSubmitting ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              {pendingRunId ? 'Processing...' : 'Starting...'}
+              Creating Run...
             </>
           ) : (
             <>

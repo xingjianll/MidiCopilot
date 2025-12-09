@@ -19,6 +19,7 @@ from src.utils import PROJECT_ROOT
 
 class Infill(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin):
     def __init__(self):
+        super().__init__()
         self.device = "mps" if torch.backends.mps.is_available() else "cpu"
         torch.Tensor.cuda = lambda self, *args, **kwargs: self.to(self.device)
 
@@ -91,7 +92,7 @@ class Infill(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin):
 
             return token_ids
 
-    def run(self,
+    async def run(self,
             prefix: MidiTrack,
             suffix: MidiTrack,
             max_length: int,
@@ -110,7 +111,7 @@ class Infill(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin):
         suffix_ids = self._get_ids(suffix, True, True)
         self.post_processor = HarmonizerPostProcessor(len(prefix_ids))
         prompt_input_ids = torch.tensor([suffix_ids + prefix_ids], device=self.device)
-        return self._run(prompt_input_ids, max_length, style)
+        return await self._run(prompt_input_ids, max_length, style)
 
         # with tempfile.NamedTemporaryFile(suffix=".mid", delete=True) as output_temp:
         #     continuation = self.model.generate(

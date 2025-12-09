@@ -86,7 +86,7 @@ class Workflow(Runnable[Any, dict]):
 
         return result
 
-    def run(self, *args: Any, **kwargs: Any) -> dict:
+    async def run(self, *args: Any, **kwargs: Any) -> dict:
         """Execute the workflow DAG."""
         # Get execution order
         execution_order = self._topological_sort()
@@ -149,7 +149,7 @@ class Workflow(Runnable[Any, dict]):
                         raise ValueError(f"Parameter '{edge.from_parameter}' not found in result from node {edge.from_uid}")
 
                 # Execute the module
-                result = module_instance.run(**module_inputs)
+                result = await module_instance.run(**module_inputs)
                 node_results[node_uid] = result
 
         # Build final output dictionary from OutputNodes

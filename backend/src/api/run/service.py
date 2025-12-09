@@ -15,6 +15,7 @@ from src.api.sample.dto.sample_dto import SampleCreateRequest
 from src.api.sample.table.sample import SampleType
 from src.core.module import Module
 from src.core.workflow import Workflow
+from src.core.modules.midi_seq2seq import ProgressCallback, MidiSeq2SeqMixin
 from src.utils import stringify
 from src.queue_manager import get_run_queue
 
@@ -64,7 +65,7 @@ async def create_run(run_request: RunCreateRequest) -> Response:
     )
 
 
-async def execute_run_internal(run_id: int, workflow_id: Optional[int], module_name: Optional[str], inputs: dict) -> dict:
+async def execute_run_internal(run_id: int, workflow_id: Optional[int], module_name: Optional[str], inputs: dict, websocket_manager=None) -> dict:
     """Internal function to execute a run (called by queue processor)"""
     start_time = datetime.utcnow()
     execution_result: dict = {}
@@ -80,7 +81,7 @@ async def execute_run_internal(run_id: int, workflow_id: Optional[int], module_n
 
         # Execute the workflow
         workflow_instance = Workflow(workflow_response)
-        execution_result = workflow_instance.run(**converted_inputs)
+        execution_result = await workflow_instance.run(**converted_inputs)
 
     elif module_name is not None:
         # Execute module directly
@@ -92,7 +93,13 @@ async def execute_run_internal(run_id: int, workflow_id: Optional[int], module_n
         converted_inputs = _convert_inputs_for_module(inputs, module_class)
 
         module_instance = module_class()
-        execution_result = module_instance.run(**converted_inputs)
+        
+        # Set up progress tracking if module supports it
+        if isinstance(module_instance, MidiSeq2SeqMixin) and websocket_manager:
+            progress_callback = ProgressCallback(run_id, websocket_manager)
+            module_instance.set_progress_callback(progress_callback)
+        
+        execution_result = await module_instance.run(**converted_inputs)
 
     else:
         raise ValueError("Either workflow_id or module_name must be provided")

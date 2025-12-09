@@ -9,6 +9,7 @@ import { SidebarProvider, SidebarInset } from './components/ui/sidebar';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { WebSocketProvider } from './context/WebSocketContext';
 import { NotificationToast } from './components/NotificationToast';
+import { QueueStatusWidget } from './components/QueueStatusWidget';
 import './App.css';
 
 type AppView = 'home' | 'runs' | 'samples' | 'editor';
@@ -72,6 +73,7 @@ function AppContent() {
           notifications={notifications}
           onDismiss={removeNotification}
         />
+        <QueueStatusWidget />
       </div>
     );
   }
@@ -97,6 +99,7 @@ function AppContent() {
         notifications={notifications}
         onDismiss={removeNotification}
       />
+      <QueueStatusWidget />
     </div>
   );
 }

@@ -36,7 +36,6 @@ export const RunRow: React.FC<RunRowProps> = ({
   isSelected = false 
 }) => {
   const StatusIcon = statusIcons[run.status];
-  const statusColor = statusColors[run.status];
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
