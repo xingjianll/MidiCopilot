@@ -102,7 +102,7 @@ class MidiSeq2SeqMixin:
                 model.load_adapter(p, adapter_name="style")
                 model.add_weighted_adapter(
                     adapters=["harmonizer", "style"],
-                    weights=[0.7, 0.3],
+                    weights=[0.65, 0.35],
                     adapter_name="merged",
                     combination_type="linear",
                 )
@@ -176,8 +176,9 @@ class MidiSeq2SeqMixin:
                 return model.generate(
                     input_ids,
                     max_length=max_length,
-                    do_sample=False,
+                    do_sample=True,
                     temperature=1,
+                    top_p=0.95,
                     use_cache=True,
                     logits_processor=processors,
                 )
@@ -185,9 +186,10 @@ class MidiSeq2SeqMixin:
                 return model.generate(
                     input_ids,
                     max_length=max_length,
-                    do_sample=False,
+                    do_sample=True,
                     temperature=1,
-                    use_cache=True
+                    top_p=0.95,
+                    use_cache=True,
                 )
 
         # Start generation in background
