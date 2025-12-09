@@ -14,4 +14,4 @@ class Sample(Base):
     __tablename__ = "sample"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     type: Mapped[SampleType] = mapped_column(Enum(SampleType))
-    path: Mapped[str] = mapped_column(String)
+    path: Mapped[str] = mapped_column(String, unique=True)

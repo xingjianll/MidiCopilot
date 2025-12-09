@@ -21,7 +21,7 @@ def get_run(db: Session, run_id: int) -> Run | None:
 
 @with_session
 def get_runs(db: Session, skip: int = 0, limit: int = 100) -> list[Run]:
-    return db.query(Run).offset(skip).limit(limit).all()
+    return db.query(Run).order_by(Run.created_at.desc()).offset(skip).limit(limit).all()
 
 
 @with_session

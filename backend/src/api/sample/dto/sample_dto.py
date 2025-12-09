@@ -18,9 +18,18 @@ class Response(BaseModel):
     path: str
 
 
+class DeleteRequest(BaseModel):
+    delete_file: bool = False
+
+
 class DeleteResponse(BaseModel):
     message: str
+    file_deleted: bool = False
 
 
 class PlayResponse(BaseModel):
     message: str
+
+
+class RenameRequest(BaseModel):
+    new_name: str

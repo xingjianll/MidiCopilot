@@ -108,7 +108,7 @@ def _get_module_class(module_name: str):
     return walk(Module, module_name)
 
 
-def _convert_inputs_for_module(inputs: dict, module_class) -> dict:
+def _convert_inputs_for_module(inputs: dict, module_class: type[Module]) -> dict:
     """
     Convert file paths to appropriate types based on module signature.
     For MidiTrack inputs, convert file paths to TrackTick objects.
@@ -170,10 +170,6 @@ def _load_midi_track_from_path(file_path: str):
     try:
         # Load MIDI file using symusic
         score = Score.from_file(file_path)
-        score.ticks_per_quarter
-        score.dump_midi("./test0.mid")
-        print(f"Loaded score with {len(score.tracks)} tracks")
-
         if not score.tracks:
             raise ValueError(f"No tracks found in MIDI file: {file_path}")
 

@@ -530,9 +530,6 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
 
                   {/* Render dynamic input field */}
                   <div className="mt-4">
-                    <label className="block text-sm font-medium mb-2">
-                      Value:
-                    </label>
                     {renderInputField(input)}
                   </div>
                 </CardContent>
@@ -570,44 +567,6 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
         </div>
       </div>
 
-      {/* Progress Display */}
-      {isRunning && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card>
-            <CardContent className="p-4">
-              <div className="font-semibold mb-2">
-                Generating...
-              </div>
-
-              {statusMessage && (
-                <div className="text-sm text-muted-foreground mb-4">
-                  {statusMessage}
-                </div>
-              )}
-
-              {progress && (
-                <>
-                  <div className="flex justify-between mb-2 text-sm text-muted-foreground font-mono">
-                    <span>
-                      {progress.generated} / {progress.total - progress.promptLength} tokens generated
-                    </span>
-                    <span>{progress.percentage}%</span>
-                  </div>
-
-                  <Progress value={progress.percentage} className="mb-2" />
-
-                  <div className="text-xs text-muted-foreground font-mono">
-                    Prompt: {progress.promptLength} tokens | Current: {progress.current} / {progress.total}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
 
       {/* Error Display */}
       {error && (
@@ -623,26 +582,6 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
         </motion.div>
       )}
 
-      {/* Result Display */}
-      {result && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Alert>
-            <AlertDescription>
-              <div className="font-semibold mb-2">Success!</div>
-              <div className="text-sm mb-4">{result.message}</div>
-              {result.sample_id && (
-                <Button onClick={handleViewSample} size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  View Sample (ID: {result.sample_id})
-                </Button>
-              )}
-            </AlertDescription>
-          </Alert>
-        </motion.div>
-      )}
 
       {/* Run Button */}
       <div className="flex gap-4">

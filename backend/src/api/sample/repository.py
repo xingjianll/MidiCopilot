@@ -48,3 +48,8 @@ def delete_sample(db: Session, sample_id: int) -> bool:
     db.commit()
 
     return True
+
+
+@with_session
+def get_sample_by_path(db: Session, path: str) -> Sample | None:
+    return db.query(Sample).filter(Sample.path == path).first()

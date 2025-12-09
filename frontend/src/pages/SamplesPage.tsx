@@ -8,7 +8,9 @@ import { SampleDetail } from '../components/SampleDetail';
 import { PageHeader } from '../components/page-header';
 import { Sheet, SheetContent } from '../components/ui/sheet';
 import { Button } from '../components/ui/button';
-import { Plus, Upload, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Upload, Loader2, RefreshCw, Pencil } from 'lucide-react';
+import { DeleteSampleDialog } from '../components/DeleteSampleDialog';
+import { RenameSampleDialog } from '../components/RenameSampleDialog';
 
 export const SamplesPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('column');
@@ -17,6 +19,10 @@ export const SamplesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [sampleToDelete, setSampleToDelete] = useState<Sample | null>(null);
+  const [sampleToRename, setSampleToRename] = useState<Sample | null>(null);
 
   // Fetch samples from backend
   const fetchSamples = async () => {
@@ -130,7 +136,30 @@ export const SamplesPage: React.FC = () => {
         await fetchSamples();
       } else {
         const errorData = await response.json();
-        alert('Failed to upload sample: ' + (errorData.error || errorData.message || response.statusText));
+        if (response.status === 409) {
+          // File already exists
+          if (confirm(errorData.detail + '\n\nDo you want to overwrite the existing sample?')) {
+            // Extract sample ID from error message
+            const match = errorData.detail.match(/ID: (\d+)/);
+            if (match) {
+              const existingSampleId = match[1];
+              // Delete existing sample first
+              await fetch(`http://localhost:8000/sample/${existingSampleId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ delete_file: true }),
+              });
+              // Retry upload
+              event.target.value = file.name;
+              handleFileUpload(event);
+              return;
+            }
+          }
+        } else {
+          alert('Failed to upload sample: ' + (errorData.detail || errorData.error || errorData.message || response.statusText));
+        }
       }
     } catch (error) {
       console.error('Error uploading sample:', error);
@@ -144,24 +173,103 @@ export const SamplesPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (sampleId: string) => {
-    if (!confirm('Are you sure you want to delete this sample?')) return;
+  const handleDelete = (sample: Sample) => {
+    setSampleToDelete(sample);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async (deleteFile: boolean) => {
+    if (!sampleToDelete) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/sample/${sampleId}`, {
+      const response = await fetch(`http://localhost:8000/sample/${sampleToDelete.id}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ delete_file: deleteFile }),
       });
 
       if (response.ok) {
         // Refresh samples list
         await fetchSamples();
         // Clear selection if deleted sample was selected
-        if (selectedSample?.id === sampleId) {
+        if (selectedSample?.id === sampleToDelete.id) {
           setSelectedSample(null);
         }
       }
     } catch (error) {
       console.error('Error deleting sample:', error);
+      alert('Failed to delete sample');
+    }
+  };
+
+  const handleRename = (sample: Sample) => {
+    setSampleToRename(sample);
+    setRenameDialogOpen(true);
+  };
+
+  const confirmRename = async (newName: string) => {
+    if (!sampleToRename) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/sample/${sampleToRename.id}/rename`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ new_name: newName }),
+      });
+
+      if (response.ok) {
+        const updatedSample = await response.json();
+        
+        // Extract the new filename from the path
+        const newFileName = updatedSample.path.split('/').pop() || newName;
+        const extension = newFileName.split('.').pop()?.toLowerCase() || '';
+        
+        // Update the sample in the UI immediately
+        setSamples(prevSamples => 
+          prevSamples.map(sample => 
+            sample.id === sampleToRename.id 
+              ? {
+                  ...sample,
+                  name: newFileName,
+                  format: extension.toUpperCase(),
+                  detailedDescription: generateDetailedDescription({
+                    id: updatedSample.id,
+                    name: newFileName,
+                    type: updatedSample.type,
+                    path: updatedSample.path,
+                    format: extension.toUpperCase()
+                  })
+                }
+              : sample
+          )
+        );
+        
+        // Update selected sample if it's the one being renamed
+        if (selectedSample?.id === sampleToRename.id) {
+          setSelectedSample(prev => prev ? {
+            ...prev,
+            name: newFileName,
+            format: extension.toUpperCase(),
+            detailedDescription: generateDetailedDescription({
+              id: updatedSample.id,
+              name: newFileName,
+              type: updatedSample.type,
+              path: updatedSample.path,
+              format: extension.toUpperCase()
+            })
+          } : null);
+        }
+      } else {
+        const errorData = await response.json();
+        alert('Failed to rename sample: ' + (errorData.detail || errorData.error || errorData.message));
+      }
+    } catch (error) {
+      console.error('Error renaming sample:', error);
+      alert('Failed to rename sample');
     }
   };
 
@@ -240,7 +348,15 @@ export const SamplesPage: React.FC = () => {
               <div className="relative">
                 <div className="absolute top-0 right-0 flex gap-2 z-10">
                   <Button
-                    onClick={() => handleDelete(selectedSample.id)}
+                    onClick={() => handleRename(selectedSample)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Rename
+                  </Button>
+                  <Button
+                    onClick={() => handleDelete(selectedSample)}
                     variant="destructive"
                     size="sm"
                   >
@@ -260,6 +376,22 @@ export const SamplesPage: React.FC = () => {
           accept=".mid,.midi,.wav,.mp3,.flac,.ogg"
           onChange={handleFileUpload}
           className="hidden"
+        />
+
+        {/* Delete confirmation dialog */}
+        <DeleteSampleDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          sampleName={sampleToDelete?.name || ''}
+          onConfirm={confirmDelete}
+        />
+
+        {/* Rename dialog */}
+        <RenameSampleDialog
+          open={renameDialogOpen}
+          onOpenChange={setRenameDialogOpen}
+          currentName={sampleToRename?.name || ''}
+          onConfirm={confirmRename}
         />
       </div>
     );
@@ -343,7 +475,15 @@ export const SamplesPage: React.FC = () => {
             <div className="relative">
               <div className="absolute top-0 right-0 flex gap-2 z-10">
                 <Button
-                  onClick={() => handleDelete(selectedSample.id)}
+                  onClick={() => handleRename(selectedSample)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Rename
+                </Button>
+                <Button
+                  onClick={() => handleDelete(selectedSample)}
                   variant="destructive"
                   size="sm"
                 >
@@ -363,6 +503,22 @@ export const SamplesPage: React.FC = () => {
         accept=".mid,.midi,.wav,.mp3,.flac,.ogg"
         onChange={handleFileUpload}
         className="hidden"
+      />
+
+      {/* Delete confirmation dialog */}
+      <DeleteSampleDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        sampleName={sampleToDelete?.name || ''}
+        onConfirm={confirmDelete}
+      />
+
+      {/* Rename dialog */}
+      <RenameSampleDialog
+        open={renameDialogOpen}
+        onOpenChange={setRenameDialogOpen}
+        currentName={sampleToRename?.name || ''}
+        onConfirm={confirmRename}
       />
     </>
   );

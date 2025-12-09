@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 
 from src.api.sample import service
-from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteResponse, SamplePlayRequest, PlayResponse
+from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteRequest, DeleteResponse, SamplePlayRequest, PlayResponse, RenameRequest
 
 router = APIRouter(
     prefix="/sample",
@@ -42,8 +42,8 @@ def update_sample(sample_id: int, sample_request: SampleCreateRequest) -> Respon
 
 
 @router.delete("/{sample_id}")
-def delete_sample(sample_id: int) -> DeleteResponse:
-    deleted = service.delete_sample(sample_id)
+def delete_sample(sample_id: int, delete_request: DeleteRequest) -> DeleteResponse:
+    deleted = service.delete_sample(sample_id, delete_request)
     if deleted is None:
         raise HTTPException(status_code=404, detail="Sample not found")
     return deleted
@@ -65,3 +65,11 @@ def download_sample(sample_id: int):
 @router.post("/{sample_id}/play")
 def play_sample(sample_id: int, play_request: SamplePlayRequest) -> PlayResponse:
     return service.play_sample(sample_id, play_request)
+
+
+@router.post("/{sample_id}/rename")
+def rename_sample(sample_id: int, rename_request: RenameRequest) -> Response:
+    renamed = service.rename_sample(sample_id, rename_request)
+    if renamed is None:
+        raise HTTPException(status_code=404, detail="Sample not found")
+    return renamed

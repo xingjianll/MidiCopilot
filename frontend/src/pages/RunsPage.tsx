@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ViewMode, Run } from '../types';
 import { ViewToggle } from '../components/ViewToggle';
@@ -15,63 +15,97 @@ export const RunsPage: React.FC = () => {
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const ITEMS_PER_PAGE = 100;
 
   // Fetch runs from backend
-  useEffect(() => {
-    const fetchRuns = async () => {
+  const fetchRuns = useCallback(async (pageNum: number) => {
+    if (pageNum === 0) {
       setLoading(true);
-      setError(null);
+    } else {
+      setLoadingMore(true);
+    }
+    setError(null);
 
-      try {
-        const response = await fetch('http://localhost:8000/run/');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch runs: ${response.status}`);
-        }
-        const data = await response.json();
-
-        // Transform run API response to frontend format
-        const transformedRuns: Run[] = await Promise.all(
-          data.map(async (runData: any) => {
-            // Fetch workflow details to get workflow name
-            let workflowName = runData.workflow_id ? `Workflow ${runData.workflow_id}` : 'Module Run';
-            if (runData.workflow_id) {
-              try {
-                const workflowResponse = await fetch(`http://localhost:8000/workflow/${runData.workflow_id}`);
-                if (workflowResponse.ok) {
-                  const workflowData = await workflowResponse.json();
-                  workflowName = workflowData.name || workflowName;
-                }
-              } catch (err) {
-                console.warn('Failed to fetch workflow name:', err);
-              }
-            }
-
-            return {
-              id: runData.id.toString(),
-              workflowId: runData.workflow_id ? runData.workflow_id.toString() : null,
-              workflowName,
-              detailedDescription: `## Run ${runData.id}\n\nExecution details for ${workflowName}\n\n### Run Information\n- **Run ID**: ${runData.id}\n- **Workflow ID**: ${runData.workflow_id}\n- **Duration**: ${runData.duration ? `${runData.duration.toFixed(2)}s` : 'N/A'}\n- **Sample ID**: ${runData.sample_id || 'None'}`,
-              status: runData.duration !== null ? 'completed' : 'running',
-              createdAt: runData.created_at,
-              completedAt: runData.duration !== null ? runData.created_at : undefined,
-              inputs: {}, // Backend doesn't return input details in list endpoint
-              outputs: runData.sample_id ? { sample_id: runData.sample_id } : undefined
-            };
-          })
-        );
-
-        setRuns(transformedRuns);
-      } catch (err: any) {
-        console.error('Error fetching runs:', err);
-        setError(err.message || 'Failed to fetch runs');
-      } finally {
-        setLoading(false);
+    try {
+      const skip = pageNum * ITEMS_PER_PAGE;
+      const response = await fetch(`http://localhost:8000/run/?skip=${skip}&limit=${ITEMS_PER_PAGE}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch runs: ${response.status}`);
       }
-    };
+      const data = await response.json();
 
-    fetchRuns();
+      // If we got less than the limit, we've reached the end
+      if (data.length < ITEMS_PER_PAGE) {
+        setHasMore(false);
+      }
+
+      // Transform run API response to frontend format
+      const transformedRuns: Run[] = await Promise.all(
+        data.map(async (runData: any) => {
+          // Fetch workflow details to get workflow name
+          let workflowName = runData.workflow_id ? `Workflow ${runData.workflow_id}` : 'Module Run';
+          if (runData.workflow_id) {
+            try {
+              const workflowResponse = await fetch(`http://localhost:8000/workflow/${runData.workflow_id}`);
+              if (workflowResponse.ok) {
+                const workflowData = await workflowResponse.json();
+                workflowName = workflowData.name || workflowName;
+              }
+            } catch (err) {
+              console.warn('Failed to fetch workflow name:', err);
+            }
+          }
+
+          return {
+            id: runData.id.toString(),
+            workflowId: runData.workflow_id ? runData.workflow_id.toString() : null,
+            workflowName,
+            detailedDescription: `## Run ${runData.id}\n\nExecution details for ${workflowName}\n\n### Run Information\n- **Run ID**: ${runData.id}\n- **Workflow ID**: ${runData.workflow_id}\n- **Duration**: ${runData.duration ? `${runData.duration.toFixed(2)}s` : 'N/A'}\n- **Sample ID**: ${runData.sample_id || 'None'}`,
+            status: runData.duration !== null ? 'completed' : 'running',
+            createdAt: runData.created_at,
+            completedAt: runData.duration !== null ? runData.created_at : undefined,
+            inputs: {}, // Backend doesn't return input details in list endpoint
+            outputs: runData.sample_id ? { sample_id: runData.sample_id } : undefined
+          };
+        })
+      );
+
+      if (pageNum === 0) {
+        setRuns(transformedRuns);
+      } else {
+        setRuns(prev => [...prev, ...transformedRuns]);
+      }
+    } catch (err: any) {
+      console.error('Error fetching runs:', err);
+      setError(err.message || 'Failed to fetch runs');
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    fetchRuns(0);
+  }, [fetchRuns]);
+
+  // Handle scroll for infinite loading
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current || loadingMore || !hasMore) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    // Load more when we're 100px from the bottom
+    if (scrollHeight - scrollTop <= clientHeight + 100) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchRuns(nextPage);
+    }
+  }, [page, loadingMore, hasMore, fetchRuns]);
 
   // Auto-select first run in column view
   useEffect(() => {
@@ -145,7 +179,11 @@ export const RunsPage: React.FC = () => {
         <div className="flex flex-1 overflow-hidden min-h-0">
           {/* Column view: Split screen */}
           <div className="w-96 flex flex-col border-r">
-            <div className="flex-1 overflow-auto">
+            <div 
+              ref={scrollRef}
+              className="flex-1 overflow-auto"
+              onScroll={handleScroll}
+            >
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -156,14 +194,22 @@ export const RunsPage: React.FC = () => {
                     <p>No runs available</p>
                   </div>
                 ) : (
-                  runs.map((run) => (
-                    <RunRow
-                      key={run.id}
-                      run={run}
-                      onClick={() => handleRunClick(run)}
-                      isSelected={selectedRun?.id === run.id}
-                    />
-                  ))
+                  <>
+                    {runs.map((run) => (
+                      <RunRow
+                        key={run.id}
+                        run={run}
+                        onClick={() => handleRunClick(run)}
+                        isSelected={selectedRun?.id === run.id}
+                      />
+                    ))}
+                    {loadingMore && (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        <span className="text-sm text-muted-foreground">Loading more...</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </motion.div>
             </div>
@@ -188,33 +234,47 @@ export const RunsPage: React.FC = () => {
         actions={<ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />}
       />
       <div className="flex flex-1 flex-col gap-4 p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-row gap-4 w-full overflow-x-auto pb-4"
+        <div
+          ref={viewMode === 'card' ? scrollRef : null}
+          className="flex-1 overflow-auto"
+          onScroll={viewMode === 'card' ? handleScroll : undefined}
         >
-          {runs.length === 0 ? (
-            <div className="text-center w-full p-8 text-muted-foreground">
-              <p>No runs available</p>
-            </div>
-          ) : (
-            runs.map((run) => (
-              <motion.div
-                key={run.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="min-w-[300px] w-[300px] flex-shrink-0"
-              >
-                <RunCard
-                  run={run}
-                  onClick={() => handleRunClick(run)}
-                  isSelected={selectedRun?.id === run.id}
-                />
-              </motion.div>
-            ))
-          )}
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-wrap gap-4"
+          >
+            {runs.length === 0 ? (
+              <div className="text-center w-full p-8 text-muted-foreground">
+                <p>No runs available</p>
+              </div>
+            ) : (
+              <>
+                {runs.map((run) => (
+                  <motion.div
+                    key={run.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="min-w-[300px] w-[300px]"
+                  >
+                    <RunCard
+                      run={run}
+                      onClick={() => handleRunClick(run)}
+                      isSelected={selectedRun?.id === run.id}
+                    />
+                  </motion.div>
+                ))}
+                {loadingMore && (
+                  <div className="w-full flex items-center justify-center p-4">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span className="text-sm text-muted-foreground">Loading more...</span>
+                  </div>
+                )}
+              </>
+            )}
+          </motion.div>
+        </div>
       </div>
 
       {/* Sheet overlay for card view */}

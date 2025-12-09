@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import UploadFile, HTTPException
 
 from src.api.sample import repository
-from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteResponse, SamplePlayRequest, PlayResponse
+from src.api.sample.dto.sample_dto import SampleCreateRequest, Response, DeleteRequest, DeleteResponse, SamplePlayRequest, PlayResponse, RenameRequest
 from src.api.sample.table.sample import SampleType
 
 
@@ -56,12 +56,33 @@ def update_sample(sample_id: int, sample_request: SampleCreateRequest) -> Respon
     )
 
 
-def delete_sample(sample_id: int) -> DeleteResponse | None:
+def delete_sample(sample_id: int, delete_request: DeleteRequest) -> DeleteResponse | None:
+    # Get the sample first to get the file path
+    db_sample = repository.get_sample(sample_id)
+    if db_sample is None:
+        return None
+    
+    file_path = db_sample.path
+    
+    # Delete from database
     deleted = repository.delete_sample(sample_id)
     if not deleted:
         return None
+    
+    # Delete file from disk if requested
+    file_deleted = False
+    if delete_request.delete_file and os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            file_deleted = True
+        except Exception as e:
+            # Log error but don't fail the entire operation
+            print(f"Warning: Failed to delete file {file_path}: {e}")
 
-    return DeleteResponse(message="Sample deleted successfully")
+    return DeleteResponse(
+        message="Sample deleted successfully",
+        file_deleted=file_deleted
+    )
 
 
 def upload_sample(file: UploadFile) -> Response:
@@ -71,6 +92,16 @@ def upload_sample(file: UploadFile) -> Response:
 
     # Save the uploaded file
     file_path = documents_path / file.filename
+    
+    # Check if file already exists
+    if file_path.exists():
+        # Check if this file path is already in the database
+        existing_sample = repository.get_sample_by_path(str(file_path))
+        if existing_sample:
+            raise HTTPException(
+                status_code=409,
+                detail=f"A sample with this file already exists (ID: {existing_sample.id}). Delete the existing sample first or rename the file."
+            )
 
     # Write file content
     with open(file_path, "wb") as f:
@@ -129,3 +160,57 @@ def play_sample(sample_id: int, play_request: SamplePlayRequest) -> PlayResponse
             raise HTTPException(status_code=500, detail=f"Error opening MIDI file: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error playing MIDI file: {str(e)}")
+
+
+def rename_sample(sample_id: int, rename_request: RenameRequest) -> Response | None:
+    """Rename a sample file and update the database"""
+    # Get the sample from database
+    db_sample = repository.get_sample(sample_id)
+    if db_sample is None:
+        return None
+    
+    # Get current file path and directory
+    current_path = Path(db_sample.path)
+    if not current_path.exists():
+        raise HTTPException(status_code=404, detail="Sample file not found on disk")
+    
+    # Create new path with the new name
+    new_name = rename_request.new_name
+    # Preserve the file extension
+    file_extension = current_path.suffix
+    if not new_name.endswith(file_extension):
+        new_name = new_name + file_extension
+    
+    new_path = current_path.parent / new_name
+    
+    # Check if new path already exists
+    if new_path.exists():
+        raise HTTPException(status_code=409, detail="A file with this name already exists")
+    
+    # Check if this path is already in use by another sample
+    existing_sample = repository.get_sample_by_path(str(new_path))
+    if existing_sample and existing_sample.id != sample_id:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Another sample (ID: {existing_sample.id}) already uses this file path"
+        )
+    
+    try:
+        # Rename the file
+        current_path.rename(new_path)
+        
+        # Update database
+        update_request = SampleCreateRequest(
+            type=db_sample.type,
+            path=str(new_path)
+        )
+        return update_sample(sample_id, update_request)
+        
+    except Exception as e:
+        # If rename fails, try to restore original state
+        if new_path.exists() and not current_path.exists():
+            try:
+                new_path.rename(current_path)
+            except:
+                pass
+        raise HTTPException(status_code=500, detail=f"Failed to rename file: {str(e)}")

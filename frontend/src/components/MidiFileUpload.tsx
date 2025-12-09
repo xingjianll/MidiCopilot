@@ -1,7 +1,17 @@
 import { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, File, X, Check, Music, ChevronDown } from 'lucide-react';
-import { theme } from '../theme';
+import { motion } from 'framer-motion';
+import { Upload, File, X, Check, Music } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Badge } from './ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 import { Sample } from '../types';
 
 type FileOrSample = File | { sampleId: string; name: string; size: number };
@@ -91,13 +101,15 @@ export const MidiFileUpload: React.FC<MidiFileUploadProps> = ({
     }
   };
 
-  const handleSampleSelect = (sample: Sample) => {
-    onFileSelect({ 
-      sampleId: sample.id, 
-      name: sample.name,
-      size: sample.size 
-    });
-    setShowSamples(false);
+  const handleSampleSelect = (sampleId: string) => {
+    const sample = samples.find(s => s.id === sampleId);
+    if (sample) {
+      onFileSelect({ 
+        sampleId: sample.id, 
+        name: sample.name,
+        size: sample.size 
+      });
+    }
   };
 
   const isFile = (file: any): file is File => {
@@ -123,281 +135,114 @@ export const MidiFileUpload: React.FC<MidiFileUploadProps> = ({
   };
 
   return (
-    <div
-      style={{
-        width: '100%',
-        position: 'relative',
-      }}
-    >
+    <div className="w-full relative">
       {!selectedFile ? (
-        <motion.div
+        <Card
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          whileHover={{ scale: 1.01 }}
-          style={{
-            border: `2px dashed ${isDragging ? theme.colors.accent.primary : theme.colors.border}`,
-            borderRadius: theme.borderRadius.lg,
-            padding: theme.spacing.xl,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: theme.spacing.md,
-            background: isDragging
-              ? `${theme.colors.accent.primary}10`
-              : theme.colors.surface,
-            cursor: 'pointer',
-            minHeight: '180px',
-            transition: 'all 0.2s ease',
-          }}
           onClick={() => document.getElementById('midi-file-input')?.click()}
+          className={cn(
+            "border-2 border-dashed p-4 flex flex-col items-center justify-center gap-2 cursor-pointer min-h-[120px] transition-all hover:border-primary",
+            isDragging && "border-primary bg-primary/10"
+          )}
         >
           <Upload
-            size={48}
-            color={isDragging ? theme.colors.accent.primary : theme.colors.text.secondary}
+            size={32}
+            className={cn(
+              "text-muted-foreground",
+              isDragging && "text-primary"
+            )}
           />
-          <div
-            style={{
-              textAlign: 'center',
-              color: theme.colors.text.primary,
-              fontWeight: '500',
-            }}
-          >
-            {isDragging ? 'Drop MIDI file here' : 'Drag & drop MIDI file here'}
-          </div>
-          <div
-            style={{
-              textAlign: 'center',
-              color: theme.colors.text.secondary,
-              fontSize: '0.9rem',
-            }}
-          >
-            or click to browse
-          </div>
-          <div
-            style={{
-              textAlign: 'center',
-              color: theme.colors.text.tertiary,
-              fontSize: '0.8rem',
-              fontFamily: 'monospace',
-            }}
-          >
-            Supports .mid and .midi files
+          <div className="text-center text-sm font-medium">
+            Drop file here
           </div>
 
           {allowSampleSelection && samples.length > 0 && (
             <>
-              <div
-                style={{
-                  margin: `${theme.spacing.md} 0`,
-                  height: '1px',
-                  background: theme.colors.border,
-                  position: 'relative',
-                }}
-              >
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    background: theme.colors.surface,
-                    padding: `0 ${theme.spacing.sm}`,
-                    color: theme.colors.text.tertiary,
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  OR
-                </span>
+              <div className="relative w-full my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">OR</span>
+                </div>
               </div>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowSamples(!showSamples);
-                }}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: theme.spacing.md,
-                  background: theme.colors.glass.surface,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.borderRadius.md,
-                  color: theme.colors.text.primary,
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-                  <Music size={20} color={theme.colors.accent.secondary} />
-                  Select from Samples
-                </div>
-                <ChevronDown
-                  size={16}
-                  style={{
-                    transition: 'transform 0.2s',
-                    transform: showSamples ? 'rotate(180deg)' : 'rotate(0deg)',
-                  }}
-                />
-              </motion.button>
+              <Select onValueChange={handleSampleSelect}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select from Samples">
+                    <div className="flex items-center gap-2">
+                      <Music size={16} />
+                      Select from Samples
+                    </div>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {samples.map((sample) => (
+                    <SelectItem key={sample.id} value={sample.id}>
+                      <div className="flex items-center gap-2">
+                        <Music size={16} className="text-muted-foreground" />
+                        <div className="flex-1">
+                          <div className="font-medium">{sample.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {(sample.size / 1024).toFixed(2)} KB • {new Date(sample.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </>
           )}
-        </motion.div>
+        </Card>
       ) : (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{
-            border: `2px solid ${theme.colors.accent.primary}`,
-            borderRadius: theme.borderRadius.lg,
-            padding: theme.spacing.lg,
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing.md,
-            background: `${theme.colors.accent.primary}10`,
-          }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px',
-              borderRadius: theme.borderRadius.md,
-              background: isFile(selectedFile) ? theme.colors.accent.primary : theme.colors.accent.secondary,
-            }}
-          >
-            {isFile(selectedFile) ? (
-              <File size={20} color={theme.colors.text.primary} />
-            ) : (
-              <Music size={20} color={theme.colors.text.primary} />
-            )}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                color: theme.colors.text.primary,
-                fontWeight: '500',
-                marginBottom: theme.spacing.xs,
-              }}
-            >
-              {getDisplayName()}
+          <Card className="border-2 border-primary bg-primary/10 p-4 flex items-center gap-4">
+            <div className={cn(
+              "w-10 h-10 rounded-md flex items-center justify-center",
+              isFile(selectedFile) ? "bg-primary" : "bg-secondary"
+            )}>
+              {isFile(selectedFile) ? (
+                <File size={20} className="text-primary-foreground" />
+              ) : (
+                <Music size={20} className="text-secondary-foreground" />
+              )}
             </div>
-            <div
-              style={{
-                color: theme.colors.text.secondary,
-                fontSize: '0.85rem',
-                fontFamily: 'monospace',
-              }}
-            >
-              {getDisplaySize()} KB {!isFile(selectedFile) && '• From Samples'}
+            <div className="flex-1">
+              <div className="font-medium mb-1">
+                {getDisplayName()}
+              </div>
+              <div className="text-sm text-muted-foreground font-mono">
+                {getDisplaySize()} KB {!isFile(selectedFile) && '• From Samples'}
+              </div>
             </div>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: theme.colors.accent.primary,
-            }}
-          >
-            <Check size={18} color={theme.colors.text.primary} />
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={onClearFile}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: theme.colors.surface,
-              border: `1px solid ${theme.colors.border}`,
-              cursor: 'pointer',
-              color: theme.colors.text.secondary,
-            }}
-          >
-            <X size={16} />
-          </motion.button>
+            <Badge variant="default" className="bg-primary">
+              <Check size={14} className="mr-1" />
+              Ready
+            </Badge>
+            <Button
+              onClick={onClearFile}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+            >
+              <X size={16} />
+            </Button>
+          </Card>
         </motion.div>
       )}
-
-      {/* Sample Selection Dropdown */}
-      <AnimatePresence>
-        {showSamples && samples.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, maxHeight: 0 }}
-            animate={{ opacity: 1, y: 0, maxHeight: 300 }}
-            exit={{ opacity: 0, y: -10, maxHeight: 0 }}
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 8px)',
-              left: 0,
-              right: 0,
-              background: theme.colors.glass.surface,
-              border: `1px solid ${theme.colors.border}`,
-              borderRadius: theme.borderRadius.lg,
-              overflow: 'hidden',
-              zIndex: 100,
-            }}
-          >
-            <div
-              style={{
-                maxHeight: '300px',
-                overflow: 'auto',
-              }}
-            >
-              {samples.map((sample) => (
-                <motion.button
-                  key={sample.id}
-                  whileHover={{ backgroundColor: theme.colors.glass.hover }}
-                  onClick={() => handleSampleSelect(sample)}
-                  style={{
-                    width: '100%',
-                    padding: theme.spacing.md,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: theme.spacing.sm,
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: `1px solid ${theme.colors.border}`,
-                    color: theme.colors.text.primary,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  <Music size={16} color={theme.colors.text.secondary} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '500' }}>{sample.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: theme.colors.text.secondary }}>
-                      {(sample.size / 1024).toFixed(2)} KB • {new Date(sample.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </motion.button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <input
         id="midi-file-input"
         type="file"
         accept=".mid,.midi"
         onChange={handleFileInput}
-        style={{ display: 'none' }}
+        className="hidden"
       />
     </div>
   );
