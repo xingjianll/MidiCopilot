@@ -16,7 +16,7 @@ class AriaBase(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin)
     def __init__(self):
         self.peft = False
         # Set up device
-        self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+        self.device = "cpu" if torch.backends.mps.is_available() else "cpu"
         torch.Tensor.cuda = lambda self, *args, **kwargs: self.to(self.device)
 
         # Load model and tokenizer
@@ -65,12 +65,7 @@ class AriaBase(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin)
             token_ids = self.tokenizer._tokenizer.encode(tokens)
             return torch.tensor([token_ids[:2]], device=self.device)
         with tempfile.NamedTemporaryFile(suffix=".mid", delete=True) as input_temp:
-            score = Score()
-            score.tracks.append(input_track.track)
-            if input_track.tempos:
-                score.tempos = input_track.tempos
-            if input_track.ticks_per_quarter:
-                score.ticks_per_quarter = input_track.ticks_per_quarter
+            score = input_track.to_score()
             score.dump_midi(input_temp.name)
 
             # Load MIDI using MidiDict

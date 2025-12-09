@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Type
 
+import symusic
 import torch
 from peft import LoraConfig, TaskType, get_peft_model
 from transformers import LogitsProcessor
@@ -132,3 +133,18 @@ class ForceTokenProcessor(LogitsProcessor):
         self.inserted = True
         print("Successfully forced D")
         return forced
+
+
+def merge_score_tracks(score: symusic.Score) -> None:
+    """
+    Merge tracks in a score by combining their notes into a single track.
+    """
+    notes = []
+    for track in score.tracks:
+        for note in track.notes:
+            notes.append(note)
+    score.tracks.clear()
+    track = symusic.Track()
+    score.tracks.append(track)
+    for note in notes:
+        track.notes.append(note)

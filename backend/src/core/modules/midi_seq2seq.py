@@ -62,29 +62,26 @@ class MidiSeq2SeqMixin:
 
         if style is not None:
             if style == 'chopin':
-                p = PROJECT_ROOT / "checkpoints" / "chopin-epoch=06-val_loss=2.0712.ckpt"
+                p = PROJECT_ROOT / "checkpoints" / "chopin"
+
             elif style == 'pop':
-                p = PROJECT_ROOT / "checkpoints" / "pop-epoch=03-val_loss=1.2997.ckpt"
+                p = PROJECT_ROOT / "checkpoints" / "pop"
 
             if not self.peft:
-                model = MidiAria2(self._get_model())
-                model.to_lora()
-                ckpt = torch.load(p, map_location="cpu")["state_dict"]
-                # ckpt = {k: v for k, v in ckpt.items() if "lora_" in k}
-                model.load_state_dict(ckpt)
-                self._set_model(model.model)
+                model = PeftModel.from_pretrained(self._get_model(), p, "style")
+                model.set_adapter("style")
+                self._set_model(model)
             else:
                 model = self._get_model()
-                model.load_adapter(PROJECT_ROOT / 'checkpoints' / 'lora', adapter_name="lora2")
+                model.load_adapter(p, adapter_name="style")
                 model.add_weighted_adapter(
-                    adapters=["default", "lora2"],
-                    weights=[0.5, 0.5],
+                    adapters=["harmonizer", "style"],
+                    weights=[0.7, 0.3],
                     adapter_name="merged",
                     combination_type="linear",
                 )
                 model.set_adapter("merged")
-
-
+                print(model.active_adapter)
         dim_tok = self._get_tokenizer()._tokenizer.dim_tok
         dim_id = self._get_tokenizer()._convert_token_to_id(dim_tok)
         processor = ForceTokenProcessor(dim_id, step=max_length, tokenizer=self._get_tokenizer()._tokenizer)

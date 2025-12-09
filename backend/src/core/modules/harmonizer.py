@@ -4,6 +4,7 @@ from typing import override, Optional, Literal
 
 import torch
 from ariautils.midi import MidiDict
+from peft import PeftModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from symusic import Score
 
@@ -27,7 +28,7 @@ class Harmonizer(AriaBase):
     def __init__(self):
         self.peft = True
         # Set up device
-        self.device = "mps" if torch.backends.mps.is_available() else "cpu"
+        self.device = "cpu" if torch.backends.mps.is_available() else "cpu"
         torch.Tensor.cuda = lambda self, *args, **kwargs: self.to(self.device)
 
         # Load model and tokenizer
@@ -35,16 +36,20 @@ class Harmonizer(AriaBase):
             "loubb/aria-medium-base",
             trust_remote_code=True,
             add_eos_token=True,
-            add_dim_token=False,
+            add_dim_token=True,
         )
         model = MidiAria(self.tokenizer, None).to(self.device)
-        model.to_lora()
 
-        # checkpoint_path = '/Users/kevin/Downloads/aria-melody-epoch=00-val_loss=0.9068.ckpt'
-        checkpoint_path = PROJECT_ROOT / 'checkpoints' / 'aria-harmony-epoch=02-val_loss=4.2002.ckpt'
-        ckpt = torch.load(checkpoint_path, map_location="cpu")["state_dict"]
-        model.load_state_dict(ckpt, strict=True)
-        self.model = model.model
+        # checkpoint_path = PROJECT_ROOT / 'checkpoints' / 'aria-harmony-epoch=00-val_loss=0.1606.ckpt'
+        # ckpt = torch.load(checkpoint_path, map_location="cpu")["state_dict"]
+        # model.load_state_dict(ckpt, strict=True)
+        # model.eval().to(self.device)
+        # self.model = model.model
+
+        p = PROJECT_ROOT / "checkpoints" / "harmonizer"
+        model = PeftModel.from_pretrained(model.model, p, "harmonizer")
+        model.set_adapter("harmonizer")
+        self.model = model
 
         self.midi_processor = None
 
@@ -59,17 +64,15 @@ class Harmonizer(AriaBase):
     @override
     def _get_input_sequence_ids(self, input_track: Optional[MidiTrack]) -> torch.Tensor:
         if input_track is None:
-            token_ids = self.tokenizer._tokenizer.encode([self.tokenizer._tokenizer.bos_tok])
-            return torch.tensor([token_ids], device=self.device)
+            stub = MidiDict.from_midi(PROJECT_ROOT / "stub.mid")
+            tokens = self.tokenizer.tokenize(
+                stub, add_eos_token=False, add_dim_token=False
+            )
+            token_ids = self.tokenizer._tokenizer.encode(tokens)
+            return torch.tensor([token_ids[:2]], device=self.device)
         with tempfile.NamedTemporaryFile(suffix=".mid", delete=False) as input_temp:
-            score = Score()
-            score.tracks.append(input_track.track)
-            if input_track.tempos:
-                score.tempos = input_track.tempos
-            if input_track.ticks_per_quarter:
-                score.ticks_per_quarter = input_track.ticks_per_quarter
+            score = input_track.to_score()
             score.dump_midi(input_temp.name)
-
             # Load MIDI using MidiDict
             midi_dict = MidiDict.from_midi(input_temp.name)
             tokens = self.tokenizer.tokenize(

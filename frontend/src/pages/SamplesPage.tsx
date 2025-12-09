@@ -22,7 +22,7 @@ export const SamplesPage: React.FC = () => {
   const fetchSamples = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/sample/');
+      const response = await fetch('http://localhost:8000/sample/?limit=1000');
       const data = await response.json();
       
       // Convert backend format to frontend format
