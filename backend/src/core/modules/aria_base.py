@@ -53,10 +53,6 @@ class AriaBase(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin)
     def _get_device(self) -> str:
         return self.device
 
-    @override
-    def _get_midi_postprocessor(self) -> MidiPostProcessor:
-        return MidiPostProcessor()
-
     def _get_input_sequence_ids(self, input_track: Optional[MidiTrack]) -> torch.Tensor:
         if input_track is None:
             stub = MidiDict.from_midi(PROJECT_ROOT / "stub.mid")
@@ -84,4 +80,4 @@ class AriaBase(Module[[Optional[MidiTrack]], MidiTrackOutput], MidiSeq2SeqMixin)
             style: Optional[Literal['pop', 'chopin']] = None
             ) -> MidiTrackOutput:
         prompt_input_ids = self._get_input_sequence_ids(input_track)
-        return await self._run(prompt_input_ids, max_length, style)
+        return await self._run(prompt_input_ids, max_length, style, True, MidiPostProcessor())

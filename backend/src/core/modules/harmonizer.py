@@ -5,6 +5,7 @@ from typing import override, Optional, Literal
 import torch
 from ariautils.midi import MidiDict
 from peft import PeftModel
+from symusic.core import TrackTick
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from symusic import Score
 
@@ -16,6 +17,7 @@ from src.utils import PROJECT_ROOT
 
 class HarmonizerPostProcessor(MidiPostProcessor):
     def __init__(self, size: int):
+        print(f"post porcessor size {size}")
         self.size = size
 
     @override
@@ -51,15 +53,9 @@ class Harmonizer(AriaBase):
         model.set_adapter("harmonizer")
         self.model = model
 
-        self.midi_processor = None
-
     @classmethod
     def description(cls) -> str:
         return "Generate harmony from melody"
-
-    @override
-    def _get_midi_postprocessor(self) -> MidiPostProcessor:
-        return self.midi_processor
 
     @override
     def _get_input_sequence_ids(self, input_track: Optional[MidiTrack]) -> torch.Tensor:
@@ -88,5 +84,4 @@ class Harmonizer(AriaBase):
             style: Optional[Literal['pop', 'chopin']] = None
             ) -> MidiTrackOutput:
         prompt_input_ids = self._get_input_sequence_ids(input_track)
-        self.midi_processor = HarmonizerPostProcessor(prompt_input_ids.shape[1])
-        return await self._run(prompt_input_ids, max_length, style)
+        return await self._run(prompt_input_ids, max_length, style, force_diminish=False, pp=HarmonizerPostProcessor(prompt_input_ids.shape[1]))

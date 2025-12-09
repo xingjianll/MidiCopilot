@@ -7,7 +7,8 @@ import torch
 from peft import PeftModel
 from symusic import Score
 from symusic.core import TrackTick
-
+import asyncio
+import time
 from src.core.domain.midi_track import MidiTrack
 from src.core.model.model import MidiAria2
 from src.core.module import Module
@@ -66,14 +67,12 @@ class MidiSeq2SeqMixin:
     def _get_device(self) -> str:
         raise NotImplementedError
 
-    @abstractmethod
-    def _get_midi_postprocessor(self) -> MidiPostProcessor:
-        raise NotImplementedError
-
     async def _run(self,
             input_ids: torch.Tensor,
             max_length: Optional[int] = None,
-            style: Optional[Literal['pop', 'chopin']] = None
+            style: Optional[Literal['pop', 'chopin']] = None,
+            force_diminish: bool = True,
+            pp: Optional[MidiPostProcessor] = None
             ) -> MidiTrackOutput:
         """
         Generate MIDI continuation from input track using Aria model.
@@ -109,23 +108,32 @@ class MidiSeq2SeqMixin:
                 )
                 model.set_adapter("merged")
                 print(model.active_adapter)
-        dim_tok = self._get_tokenizer()._tokenizer.dim_tok
-        dim_id = self._get_tokenizer()._convert_token_to_id(dim_tok)
-        processor = ForceTokenProcessor(dim_id, step=max_length, tokenizer=self._get_tokenizer()._tokenizer)
 
         with tempfile.NamedTemporaryFile(suffix=".mid", delete=True) as output_temp:
             # Generate continuation with progress tracking
-            total_length = len(input_ids[0]) + max_length + 200
+            total_length = len(input_ids[0]) + max_length
+            print(f"total length {total_length}")
+            print(f"prefix length{len(input_ids[0])}")
+
+            processors = None
+            if force_diminish:
+                dim_tok = self._get_tokenizer()._tokenizer.dim_tok
+                dim_id = self._get_tokenizer()._convert_token_to_id(dim_tok)
+                processor = ForceTokenProcessor(
+                    dim_id, step=max(total_length-100, len(input_ids[0])), tokenizer=self._get_tokenizer()._tokenizer
+                )
+                processors = [processor]
+
             if self.progress_callback:
-                self.progress_callback.set_max_tokens(max_length + 200)
+                self.progress_callback.set_max_tokens(max_length)
                 
             continuation = await self._generate_with_progress(
                 input_ids.to(self._get_device()),
                 total_length,
-                processor
+                processors
             )
-            pp = self._get_midi_postprocessor()
-            continuation = pp.post_process(continuation)
+            if pp:
+                continuation = pp.post_process(continuation)
 
             # Decode back into MIDI
             midi_dict_output = self._get_tokenizer().decode(continuation[0].tolist())
@@ -145,66 +153,62 @@ class MidiSeq2SeqMixin:
 
             return MidiTrackOutput(output_track=midi_track)
 
-    async def _generate_with_progress(self, input_ids: torch.Tensor, max_length: int, processor) -> torch.Tensor:
+    async def _generate_with_progress(self, input_ids: torch.Tensor, max_length: int, processors: Optional[list]) -> torch.Tensor:
         """Generate with progress tracking"""
         model = self._get_model()
         
         # For now, simulate progress with the original generate call
         # In a real implementation, you'd need to use a streaming approach
         # or implement token-by-token generation
-        
-        if self.progress_callback:
-            # Start progress tracking
-            await self.progress_callback.update_progress(0)
-            
-            # Simulate progress updates during generation
-            # Since we can't easily hook into the transformer's generate method,
-            # we'll simulate progress with time-based updates
-            import asyncio
-            import time
-            
-            start_time = time.time()
-            
-            # Run generation in a separate thread to avoid blocking
-            def run_generation():
+
+        # Start progress tracking
+        await self.progress_callback.update_progress(0)
+
+        # Simulate progress updates during generation
+        # Since we can't easily hook into the transformer's generate method,
+        # we'll simulate progress with time-based updates
+
+        start_time = time.time()
+
+        # Run generation in a separate thread to avoid blocking
+        def run_generation():
+            if processors:
                 return model.generate(
                     input_ids,
                     max_length=max_length,
-                    do_sample=True,
-                    temperature=0.97,
-                    top_p=0.95,
+                    do_sample=False,
+                    temperature=1,
                     use_cache=True,
-                    logits_processor=[processor]
+                    logits_processor=processors,
                 )
-            
-            # Start generation in background
-            loop = asyncio.get_event_loop()
-            generation_task = loop.run_in_executor(None, run_generation)
-            
-            # Simulate progress updates while generation is running
-            tokens_generated = 0
-            target_tokens = max_length - len(input_ids[0])
-            
-            while not generation_task.done():
-                await asyncio.sleep(0.5)  # Update every 500ms
-                elapsed = time.time() - start_time
-                # Estimate progress based on elapsed time (rough approximation)
-                estimated_progress = min(elapsed / (target_tokens * 0.1), 1.0)  # ~0.1s per token estimate
-                tokens_generated = int(estimated_progress * target_tokens)
-                await self.progress_callback.update_progress(tokens_generated)
-            
-            # Final progress update
-            await self.progress_callback.update_progress(target_tokens)
-            
-            return await generation_task
-        else:
-            # No progress tracking, just generate normally
-            return model.generate(
-                input_ids,
-                max_length=max_length,
-                do_sample=True,
-                temperature=0.97,
-                top_p=0.95,
-                use_cache=True,
-                logits_processor=[processor]
-            )
+            else:
+                return model.generate(
+                    input_ids,
+                    max_length=max_length,
+                    do_sample=False,
+                    temperature=1,
+                    use_cache=True
+                )
+
+        # Start generation in background
+        loop = asyncio.get_event_loop()
+        generation_task = loop.run_in_executor(None, run_generation)
+
+        # Simulate progress updates while generation is running
+        tokens_generated = 0
+        target_tokens = max_length - len(input_ids[0])
+
+        while not generation_task.done():
+            await asyncio.sleep(0.5)  # Update every 500ms
+            elapsed = time.time() - start_time
+            # Estimate progress based on elapsed time (rough approximation)
+            estimated_progress = min(
+                elapsed / (target_tokens * 0.1), 1.0
+            )  # ~0.1s per token estimate
+            tokens_generated = int(estimated_progress * target_tokens)
+            await self.progress_callback.update_progress(tokens_generated)
+
+        # Final progress update
+        await self.progress_callback.update_progress(target_tokens)
+
+        return await generation_task
