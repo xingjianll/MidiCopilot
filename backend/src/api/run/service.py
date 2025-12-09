@@ -16,79 +16,101 @@ from src.api.sample.table.sample import SampleType
 from src.core.module import Module
 from src.core.workflow import Workflow
 from src.utils import stringify
+from src.queue_manager import get_run_queue
 
 
-def create_run(run_request: RunCreateRequest) -> Response:
-    start_time = datetime.utcnow()
+async def create_run(run_request: RunCreateRequest) -> Response:
+    """Create a run and add it to the queue for async processing"""
     workflow_id: int | None = None
-    execution_result: dict = {}
-
+    
+    # Determine workflow_id if needed
     if run_request.workflow is not None:
-        # Create and execute workflow
+        # Create workflow but don't execute yet
         workflow_response = workflow_service.create_workflow(run_request.workflow)
         workflow_id = workflow_response.id
-
-        # Convert any file paths to MidiTrack objects before execution
-        converted_inputs = _convert_inputs_for_workflow_modules(run_request.inputs, run_request.workflow)
-
-        # Execute the workflow
-        workflow_instance = Workflow(run_request.workflow)
-        execution_result = workflow_instance.run(**converted_inputs)
-
     elif run_request.workflow_id is not None:
-        # Use existing workflow and execute it
         workflow_id = run_request.workflow_id
+        # Validate workflow exists
+        workflow_response = workflow_service.get_workflow(workflow_id)
+        if workflow_response is None:
+            raise ValueError(f"Workflow with ID {workflow_id} not found")
+    elif run_request.module_name is not None:
+        # Validate module exists
+        module_class = _get_module_class(run_request.module_name)
+        if not module_class:
+            raise ValueError(f"Module '{run_request.module_name}' not found")
+        workflow_id = None
+    else:
+        raise ValueError("One of workflow, workflow_id, or module_name must be provided")
 
+    # Create the run record immediately
+    db_run = repository.create_run(workflow_id)
+    
+    # Add to queue for async processing
+    queue = get_run_queue()
+    await queue.add_run(
+        run_id=db_run.id,
+        workflow_id=workflow_id,
+        module_name=run_request.module_name,
+        inputs=run_request.inputs
+    )
+
+    return Response(
+        id=db_run.id,
+        workflow_id=db_run.workflow_id,
+        created_at=db_run.created_at,
+        duration=None,  # Will be updated when processing completes
+        sample_id=None  # Will be updated when processing completes
+    )
+
+
+async def execute_run_internal(run_id: int, workflow_id: Optional[int], module_name: Optional[str], inputs: dict) -> dict:
+    """Internal function to execute a run (called by queue processor)"""
+    start_time = datetime.utcnow()
+    execution_result: dict = {}
+
+    if workflow_id is not None:
         # Fetch workflow from database
         workflow_response = workflow_service.get_workflow(workflow_id)
         if workflow_response is None:
             raise ValueError(f"Workflow with ID {workflow_id} not found")
 
         # Convert any file paths to MidiTrack objects before execution
-        converted_inputs = _convert_inputs_for_workflow_modules(run_request.inputs, workflow_response)
+        converted_inputs = _convert_inputs_for_workflow_modules(inputs, workflow_response)
 
         # Execute the workflow
         workflow_instance = Workflow(workflow_response)
         execution_result = workflow_instance.run(**converted_inputs)
 
-    elif run_request.module_name is not None:
-        print(run_request)
-        # Execute module directly (no workflow needed)
-        module_class = _get_module_class(run_request.module_name)
+    elif module_name is not None:
+        # Execute module directly
+        module_class = _get_module_class(module_name)
         if not module_class:
-            raise ValueError(f"Module '{run_request.module_name}' not found")
+            raise ValueError(f"Module '{module_name}' not found")
 
         # Convert any file paths to MidiTrack objects before execution
-        converted_inputs = _convert_inputs_for_module(run_request.inputs, module_class)
-        print(converted_inputs)
+        converted_inputs = _convert_inputs_for_module(inputs, module_class)
 
         module_instance = module_class()
         execution_result = module_instance.run(**converted_inputs)
-        workflow_id = None  # No workflow for direct module execution
 
     else:
-        raise ValueError("One of workflow, workflow_id, or module_name must be provided")
+        raise ValueError("Either workflow_id or module_name must be provided")
 
     # Calculate execution duration
     end_time = datetime.utcnow()
     duration = (end_time - start_time).total_seconds()
 
-    # Create the run record (with or without workflow_id)
-    db_run = repository.create_run(workflow_id)
-
-    # Update duration
-    repository.update_run_duration(db_run.id, duration)
+    # Update duration in database
+    repository.update_run_duration(run_id, duration)
 
     # Handle MidiTrack results and create samples
     sample_id = _handle_midi_track_result(execution_result)
-
-    return Response(
-        id=db_run.id,
-        workflow_id=db_run.workflow_id,
-        created_at=db_run.created_at,
-        duration=duration,
-        sample_id=sample_id
-    )
+    
+    return {
+        'sample_id': sample_id,
+        'duration': duration
+    }
 
 
 def _get_module_class(module_name: str):

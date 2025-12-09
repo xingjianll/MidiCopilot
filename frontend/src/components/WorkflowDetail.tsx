@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { MidiFileUpload } from './MidiFileUpload';
 import { BottomDrawer } from './BottomDrawer';
 import { SampleDetail } from './SampleDetail';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface WorkflowDetailProps {
   workflow: Workflow;
@@ -21,6 +22,7 @@ interface WorkflowDetailProps {
 export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClose, onEdit }) => {
   const [selectedFile, setSelectedFile] = useState<File | { sampleId: string; name: string } | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [pendingRunId, setPendingRunId] = useState<number | null>(null);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{
@@ -36,6 +38,9 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
   const [workflowInputs, setWorkflowInputs] = useState<Array<{name: string, type: string, required?: boolean, optional?: boolean}>>([]);
   const [workflowOutputs, setWorkflowOutputs] = useState<Array<{name: string, type: string}>>([]);
   const [inputValues, setInputValues] = useState<Record<string, any>>({});
+  
+  // WebSocket connection for run notifications
+  const { lastMessage } = useWebSocket('ws://localhost:8000/ws');
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -171,6 +176,20 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     analyzeWorkflow();
   }, [workflow]);
 
+  // Handle WebSocket messages for run completion
+  useEffect(() => {
+    if (lastMessage && pendingRunId) {
+      if (
+        (lastMessage.type === 'run_complete' || lastMessage.type === 'run_failed') &&
+        lastMessage.run_id === pendingRunId
+      ) {
+        // Clear pending state when our run completes or fails
+        setIsRunning(false);
+        setPendingRunId(null);
+      }
+    }
+  }, [lastMessage, pendingRunId]);
+
   const handleInputValueChange = (inputName: string, value: any) => {
     setInputValues(prev => ({
       ...prev,
@@ -305,6 +324,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
     setResult(null);
     setProgress(null);
     setStatusMessage('');
+    setPendingRunId(null);
 
     try {
       // Prepare run request based on workflow type
@@ -377,21 +397,17 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
       const runData = await response.json();
       console.log('Run created:', runData);
 
-      // Set success result
-      setResult({
-        success: true,
-        message: `Run created successfully with ID: ${runData.id}`,
-        run_id: runData.id,
-        sample_id: runData.sample_id
-      });
-
-      setStatusMessage('Run completed successfully!');
+      // Set pending run ID to track completion via WebSocket
+      setPendingRunId(runData.id);
+      
+      // Keep isRunning true until we get WebSocket notification
+      setStatusMessage('Run queued for processing...');
 
     } catch (err: any) {
       console.error('Error creating run:', err);
       setError(err.message || 'Failed to create run');
-    } finally {
       setIsRunning(false);
+      setPendingRunId(null);
     }
   };
 
@@ -594,7 +610,7 @@ export const WorkflowDetail: React.FC<WorkflowDetailProps> = ({ workflow, onClos
           {isRunning ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Running...
+              {pendingRunId ? 'Processing...' : 'Starting...'}
             </>
           ) : (
             <>

@@ -10,8 +10,8 @@ router = APIRouter(
 
 
 @router.post("/")
-def create_run(run_request: RunCreateRequest) -> Response:
-    return service.create_run(run_request)
+async def create_run(run_request: RunCreateRequest) -> Response:
+    return await service.create_run(run_request)
 
 
 @router.get("/{run_id}")

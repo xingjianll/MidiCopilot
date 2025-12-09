@@ -6,13 +6,17 @@ import { RunsPage } from './pages/RunsPage';
 import { SamplesPage } from './pages/SamplesPage';
 import { WorkflowEditor } from './components/WorkflowEditor';
 import { SidebarProvider, SidebarInset } from './components/ui/sidebar';
+import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import { WebSocketProvider } from './context/WebSocketContext';
+import { NotificationToast } from './components/NotificationToast';
 import './App.css';
 
 type AppView = 'home' | 'runs' | 'samples' | 'editor';
 
-function App() {
+function AppContent() {
   const [activeTab, setActiveTab] = useState<AppView>('home');
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
+  const { notifications, removeNotification } = useNotifications();
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab as AppView);
@@ -64,6 +68,10 @@ function App() {
         >
           {renderContent()}
         </motion.div>
+        <NotificationToast 
+          notifications={notifications}
+          onDismiss={removeNotification}
+        />
       </div>
     );
   }
@@ -85,7 +93,21 @@ function App() {
           </motion.div>
         </SidebarInset>
       </SidebarProvider>
+      <NotificationToast 
+        notifications={notifications}
+        onDismiss={removeNotification}
+      />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <NotificationProvider>
+      <WebSocketProvider>
+        <AppContent />
+      </WebSocketProvider>
+    </NotificationProvider>
   );
 }
 
