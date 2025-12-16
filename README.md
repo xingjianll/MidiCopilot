@@ -1,6 +1,8 @@
 # MidiCopilot
 AI-powered music workspace with visual workflow editor for MIDI generation and manipulation.
 
+https://github.com/user-attachments/assets/5e86de6c-96cb-4d13-a207-acdc044494fd
+
 ## Architecture
 
 MidiCopilot consists of two main components:
